@@ -168,10 +168,10 @@ async function abrirPainel(): Promise<void> {
         url.searchParams.set("cenario", CENARIO);
         url.searchParams.set("jogador", jogadorId());
         // allowApi = false: o painel não precisa controlar o mapa.
-        // allowPolicy libera o microfone para o modo voz (REQ-13, depois do MVP).
+        // allowPolicy: microfone para o jogador falar e autoplay para a voz da Marina.
         // closable = false: o painel fecha ao se afastar da Marina. Com o X do WorkAdventure,
         // o jogador fecharia o painel sem o script saber e o ESPAÇO pararia de funcionar.
-        const aberto = await WA.nav.openCoWebSite(url.toString(), false, "microphone", undefined, undefined, false);
+        const aberto = await WA.nav.openCoWebSite(url.toString(), false, "microphone; autoplay", undefined, undefined, false);
         // Saiu da zona enquanto o painel abria: fecha na hora.
         if (!naZonaDaMarina) await aberto.close();
         else painel = aberto;

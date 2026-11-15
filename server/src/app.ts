@@ -5,9 +5,12 @@ import { CENARIOS, MARCA_FIM, lerPrompt } from "./scenarios.js";
 import { Store } from "./sessions.js";
 import { gerarRelatorio } from "./report.js";
 import { LlmError, type ChatMessage, type LlmProvider } from "./llm/types.js";
+import type { VozProvider } from "./voz/types.js";
 
 export type AppOptions = {
   llm: LlmProvider;
+  /** Voz da personagem (opcional). Sem ela, a conversa é só em texto. */
+  voz?: VozProvider;
   panelOrigin?: string;
   modeloAvaliadora?: string;
   /** reasoning_effort enviado nas falas da personagem e no relatório (vazio: padrão do provedor). */
@@ -26,16 +29,34 @@ const NovaSessao = z.object({
 });
 const NovaFala = z.object({ texto: z.string().trim().min(1).max(1000) });
 const ComId = z.object({ id: z.string().uuid() });
+const ComFala = z.object({ id: z.string().uuid(), n: z.coerce.number().int().min(0).max(100) });
 
 const ERRO_LLM = "A IA não respondeu agora. Tente de novo em alguns segundos.";
+const ERRO_VOZ = "A voz não carregou. A fala continua escrita na tela.";
 const ERRO_LIMITE = "Muitas conversas começaram na última hora. Tente de novo mais tarde.";
 const UMA_HORA_MS = 60 * 60 * 1000;
+
+/**
+ * Gera o áudio uma vez por chave e reaproveita. Se a geração falhar, tira do cache
+ * para o próximo pedido tentar de novo.
+ */
+function audioEmCache<K>(cache: Map<K, Promise<Buffer>>, chave: K, texto: string, voz: VozProvider): Promise<Buffer> {
+  let audio = cache.get(chave);
+  if (!audio) {
+    audio = voz.sintetizar(texto);
+    cache.set(chave, audio);
+    audio.catch(() => cache.delete(chave));
+  }
+  return audio;
+}
 
 export function buildApp(opts: AppOptions) {
   const app = Fastify({ logger: opts.logger ?? false, trustProxy: opts.trustProxy ?? false });
   const store = new Store();
   const limite = opts.limiteSessoesPorHora ?? 0;
   const inicios: number[] = []; // horários (ms) das sessões criadas na última hora
+  // Áudio da abertura de cada cenário: o texto é fixo, então é gerado uma vez para todos.
+  const audiosAbertura = new Map<string, Promise<Buffer>>();
   // Uma ou mais origens separadas por vírgula (ex.: painel e mapa em portas diferentes no local).
   const origens = (opts.panelOrigin ?? "").split(",").map((o) => o.trim()).filter(Boolean);
   app.register(cors, { origin: origens.length ? origens : true });
@@ -58,7 +79,9 @@ export function buildApp(opts: AppOptions) {
       inicios.push(agora);
     }
     const s = store.criar(body.data.jogadorId, cenario.id, cenario.abertura);
-    return reply.code(201).send({ sessaoId: s.id, abertura: cenario.abertura, maxTrocas: cenario.maxTrocas });
+    return reply
+      .code(201)
+      .send({ sessaoId: s.id, abertura: cenario.abertura, maxTrocas: cenario.maxTrocas, voz: Boolean(opts.voz) });
   });
 
   // Uma fala do jogador → resposta da personagem.
@@ -95,6 +118,30 @@ export function buildApp(opts: AppOptions) {
     if (troca >= cenario.maxTrocas) encerrada = true;
     s.encerrada = encerrada;
     return { resposta, troca, maxTrocas: cenario.maxTrocas, encerrada };
+  });
+
+  // Áudio de uma fala da personagem. Só gera voz do que a personagem disse nesta sessão,
+  // para a API não virar um gerador de voz para qualquer texto.
+  app.get("/api/sessoes/:id/falas/:n/voz", async (req, reply) => {
+    const params = ComFala.safeParse(req.params);
+    if (!params.success) return reply.code(400).send({ erro: "Dados inválidos" });
+    if (!opts.voz) return reply.code(404).send({ erro: "Voz desligada" });
+    const s = store.obter(params.data.id);
+    const fala = s?.falas[params.data.n];
+    if (!s || fala?.autor !== "personagem") return reply.code(404).send({ erro: "Fala não encontrada" });
+
+    // A fala 0 é a abertura fixa do cenário (um áudio para todos); as outras são desta sessão.
+    const audio =
+      params.data.n === 0
+        ? audioEmCache(audiosAbertura, s.cenarioId, fala.texto, opts.voz)
+        : audioEmCache((s.audios ??= new Map()), params.data.n, fala.texto, opts.voz);
+    try {
+      const wav = await audio;
+      return reply.header("content-type", "audio/wav").header("cache-control", "private, max-age=3600").send(wav);
+    } catch (err) {
+      req.log.warn({ err: err instanceof Error ? err.message : err }, "falha na voz");
+      return reply.code(502).send({ erro: ERRO_VOZ });
+    }
   });
 
   // Gera (uma vez) o relatório da conversa e registra o progresso.

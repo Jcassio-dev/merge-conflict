@@ -1,5 +1,6 @@
 import "./style.css";
 import { retratoMarina } from "./retrato";
+import { microfoneDisponivel, ouvir, parar as pararVoz, tocar, type Escuta } from "./voz";
 import { api, ApiError, type Fala, type Nivel, type NomeCriterio, type Relatorio } from "./api";
 
 // ---------- parâmetros e armazenamento local ----------
@@ -39,7 +40,14 @@ const estado = {
   textoPendente: "",
   relatorio: undefined as Relatorio | undefined,
   aba: "resumo" as "resumo" | "detalhe",
+  /** O servidor tem voz para a Marina? */
+  voz: false,
+  /** Preferência do jogador (fica no navegador). */
+  vozLigada: lerLocal("cd-voz") !== "desligada",
+  ouvindo: false,
+  avisoMic: "",
 };
+let escuta: Escuta | undefined;
 
 const app = document.querySelector<HTMLElement>("#app")!;
 const ficha = document.querySelector<HTMLDialogElement>("#ficha")!;
@@ -90,7 +98,8 @@ function telaBriefing(): string {
       <li>Cerca de 15 min</li><li>Responda por texto</li><li>Pode pausar</li>
     </ul>
     <p class="discreto">A IA analisa a conversa só para gerar o seu relatório.<br>
-    Sua liderança não vê o resultado individual.</p>
+    Sua liderança não vê o resultado individual.${microfoneDisponivel ? `<br>
+    Se usar o microfone, o navegador envia sua voz para virar texto (no Chrome, ao Google). Nada é gravado.` : ""}</p>
     ${estado.erro ? `<p class="erro" role="alert">${esc(estado.erro)}</p>` : ""}
     <div class="acoes">
       <button class="primario" data-acao="comecar" ${estado.aguardando ? "disabled" : ""}>
@@ -103,9 +112,10 @@ function telaBriefing(): string {
 function telaDialogo(): string {
   const encerrada = estado.tela === "encerrada";
   const falas = estado.falas
-    .map((f) =>
+    .map((f, i) =>
       f.autor === "personagem"
-        ? `<div class="fala marina"><span class="quem">Marina</span><p>${esc(f.texto)}</p></div>`
+        ? `<div class="fala marina"><span class="quem">Marina${estado.voz
+            ? ` <button class="ouvir" data-ouvir="${i}" aria-label="Ouvir esta fala da Marina">🔊</button>` : ""}</span><p>${esc(f.texto)}</p></div>`
         : `<div class="fala voce"><span class="quem">Você</span><p>${esc(f.texto)}</p></div>`,
     )
     .join("");
@@ -116,13 +126,18 @@ function telaDialogo(): string {
          ${estado.aguardando ? "Gerando seu relatório…" : "Ver meu relatório"}</button></div>`
     : `<p class="discreto" id="instrucao">Responda por texto · fala ${estado.troca + 1} de até ${estado.maxTrocas}</p>
        ${estado.erro ? `<p class="erro" role="alert">${esc(estado.erro)} <button data-acao="reenviar">Tentar de novo</button></p>` : ""}
+       ${estado.ouvindo ? `<p class="discreto" role="status">Ouvindo… fale e depois confira o texto antes de enviar.</p>` : ""}
+       ${estado.avisoMic ? `<p class="erro" role="alert">${esc(estado.avisoMic)}</p>` : ""}
        <form class="resposta" data-form="fala">
          <label class="sr" for="campo">Sua resposta</label>
          <textarea id="campo" rows="2" maxlength="1000" placeholder="Digite sua resposta…" aria-describedby="instrucao"
            ${estado.aguardando ? "disabled" : ""}>${esc(estado.textoPendente)}</textarea>
+         ${microfoneDisponivel ? `<button type="button" data-acao="microfone" aria-pressed="${estado.ouvindo}"
+           ${estado.aguardando ? "disabled" : ""}>${estado.ouvindo ? "■ Parar" : "🎤 Falar"}</button>` : ""}
          <button class="primario" type="submit" ${estado.aguardando ? "disabled" : ""}>Enviar</button>
        </form>
-       <div class="acoes"><button data-acao="pausar">II Pausar</button><button data-acao="ficha">Ver ficha</button></div>`;
+       <div class="acoes"><button data-acao="pausar">II Pausar</button><button data-acao="ficha">Ver ficha</button>
+         ${botaoVoz()}</div>`;
   return `${barra("Sala Projeto", encerrada ? 6 : 3)}
   <section class="dialogo">
     <div class="personagem" aria-hidden="true"><div class="retrato">${retratoMarina()}</div><div><strong>Marina</strong><br><span>Product Owner</span></div></div>
@@ -132,6 +147,12 @@ function telaDialogo(): string {
       ${rodape}
     </div>
   </section>`;
+}
+
+function botaoVoz(): string {
+  if (!estado.voz) return "";
+  return `<button data-acao="voz" aria-pressed="${estado.vozLigada}">${
+    estado.vozLigada ? "🔊 Voz da Marina: ligada" : "🔇 Voz da Marina: desligada"}</button>`;
 }
 
 function telaRelatorio(): string {
@@ -222,17 +243,48 @@ async function comecar(): Promise<void> {
   try {
     const s = await api.iniciar(jogadorId, cenarioId);
     Object.assign(estado, {
-      sessaoId: s.sessaoId, maxTrocas: s.maxTrocas, troca: 0,
+      sessaoId: s.sessaoId, maxTrocas: s.maxTrocas, troca: 0, voz: s.voz === true,
       falas: [{ autor: "personagem", texto: s.abertura }], tela: "dialogo", relatorio: undefined, aba: "resumo",
     });
   } catch (e) {
     estado.erro = e instanceof ApiError ? e.message : "Algo deu errado.";
   }
   estado.aguardando = false; render(); focarCampo();
+  if (estado.tela === "dialogo") falarMarina(0);
+}
+
+/** Toca a fala n da Marina, se a voz estiver ligada. */
+function falarMarina(n: number, mesmoDesligada = false): void {
+  if (!estado.voz || (!estado.vozLigada && !mesmoDesligada)) return;
+  tocar(api.urlVoz(estado.sessaoId, n));
+}
+
+function alternarMicrofone(): void {
+  if (escuta) { escuta.parar(); return; }
+  const antes = estado.textoPendente.trim();
+  estado.avisoMic = "";
+  escuta = ouvir(
+    (texto) => {
+      const campo = document.querySelector<HTMLTextAreaElement>("#campo");
+      const valor = antes ? `${antes} ${texto}` : texto;
+      estado.textoPendente = valor;
+      if (campo) campo.value = valor;
+    },
+    (erro) => {
+      escuta = undefined;
+      estado.ouvindo = false;
+      estado.avisoMic = erro ?? "";
+      render(); focarCampo();
+    },
+  );
+  estado.ouvindo = Boolean(escuta);
+  render();
 }
 
 async function enviar(texto: string): Promise<void> {
   if (!texto.trim() || estado.aguardando) return;
+  escuta?.parar();
+  pararVoz();
   estado.textoPendente = texto; estado.aguardando = true; estado.erro = "";
   estado.falas.push({ autor: "jogador", texto });
   render();
@@ -241,6 +293,7 @@ async function enviar(texto: string): Promise<void> {
     estado.falas.push({ autor: "personagem", texto: r.resposta });
     estado.troca = r.troca; estado.textoPendente = "";
     if (r.encerrada) estado.tela = "encerrada";
+    falarMarina(estado.falas.length - 1);
   } catch (e) {
     estado.falas.pop(); // a fala não chegou: devolve para o campo
     estado.erro = e instanceof ApiError ? e.message : "Algo deu errado.";
@@ -249,6 +302,7 @@ async function enviar(texto: string): Promise<void> {
 }
 
 async function pedirRelatorio(): Promise<void> {
+  pararVoz();
   estado.aguardando = true; estado.erro = ""; render();
   try {
     const r = await api.relatorio(estado.sessaoId);
@@ -271,11 +325,21 @@ function ligarEventos(): void {
       const acao = b.dataset.acao;
       if (acao === "comecar" || acao === "repetir") void comecar();
       if (acao === "ficha") renderFicha(false);
-      if (acao === "pausar") renderFicha(true);
+      if (acao === "pausar") { pararVoz(); escuta?.parar(); renderFicha(true); }
+      if (acao === "microfone") alternarMicrofone();
+      if (acao === "voz") {
+        estado.vozLigada = !estado.vozLigada;
+        salvarLocal("cd-voz", estado.vozLigada ? "ligada" : "desligada");
+        if (!estado.vozLigada) pararVoz();
+        render();
+      }
       if (acao === "relatorio") void pedirRelatorio();
       if (acao === "reenviar") void enviar(estado.textoPendente);
       if (acao === "continuar") { estado.tela = "reflexao"; render(); }
     }),
+  );
+  app.querySelectorAll<HTMLButtonElement>("[data-ouvir]").forEach((b) =>
+    b.addEventListener("click", () => falarMarina(Number(b.dataset.ouvir), true)),
   );
   app.querySelectorAll<HTMLButtonElement>("[data-aba]").forEach((b) =>
     b.addEventListener("click", () => { estado.aba = b.dataset.aba as "resumo" | "detalhe"; render(); }),

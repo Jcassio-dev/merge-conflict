@@ -31,7 +31,7 @@ async function chamar<T>(caminho: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   iniciar: (jogadorId: string, cenarioId: string) =>
-    chamar<{ sessaoId: string; abertura: string; maxTrocas: number }>("/api/sessoes", {
+    chamar<{ sessaoId: string; abertura: string; maxTrocas: number; voz?: boolean }>("/api/sessoes", {
       method: "POST",
       body: JSON.stringify({ jogadorId, cenarioId }),
     }),
@@ -40,6 +40,8 @@ export const api = {
       `/api/sessoes/${sessaoId}/falas`,
       { method: "POST", body: JSON.stringify({ texto }) },
     ),
+  /** Áudio (WAV) da fala n da personagem; o servidor só aceita falas dela. */
+  urlVoz: (sessaoId: string, n: number) => `${API}/api/sessoes/${sessaoId}/falas/${n}/voz`,
   relatorio: (sessaoId: string) =>
     chamar<{ relatorio: Relatorio; falas: Fala[] }>(`/api/sessoes/${sessaoId}/relatorio`, { method: "POST", body: "{}" }),
 };

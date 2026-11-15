@@ -171,3 +171,11 @@ mark { background: var(--marca); color: var(--tinta); padding: 0 2px; }
   .resposta { flex-direction: column; }
   .falas { max-height: 46vh; }
 }
+
+/* voz */
+.fala .quem .ouvir {
+  min-height: 0; padding: 0 6px; margin-left: 4px; font-size: 0.85rem; line-height: 1.4;
+  border-width: 2px; box-shadow: none; vertical-align: middle;
+}
+.fala .quem .ouvir:hover:not(:disabled) { transform: none; box-shadow: none; }
+button[data-acao="microfone"][aria-pressed="true"] { background: var(--marca); border-color: var(--madeira); }

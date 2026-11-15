@@ -2,6 +2,8 @@ import { buildApp } from "./app.js";
 import { MockProvider } from "./llm/mock.js";
 import { OpenAICompatibleProvider } from "./llm/openaiCompatible.js";
 import type { LlmProvider } from "./llm/types.js";
+import { GeminiTtsProvider } from "./voz/gemini.js";
+import type { VozProvider } from "./voz/types.js";
 
 try {
   process.loadEnvFile(".env");
@@ -25,8 +27,20 @@ function criarProvedor(): LlmProvider {
   });
 }
 
+/** Voz da Marina pelo Gemini TTS. TTS_MODEL vazio = conversa só em texto. */
+function criarVoz(): VozProvider | undefined {
+  if (!env.TTS_MODEL) return undefined;
+  return new GeminiTtsProvider({
+    apiKey: env.TTS_API_KEY || env.LLM_API_KEY || "",
+    model: env.TTS_MODEL,
+    voz: env.TTS_VOZ || "Kore",
+    timeoutMs: Number(env.TTS_TIMEOUT_MS ?? 20000),
+  });
+}
+
 const app = buildApp({
   llm: criarProvedor(),
+  voz: criarVoz(),
   panelOrigin: env.PANEL_ORIGIN,
   modeloAvaliadora: env.LLM_MODEL_AVALIADORA || undefined,
   reasoningEffortPersonagem: env.LLM_REASONING_EFFORT || undefined,

@@ -11,6 +11,8 @@ export type Sessao = {
   encerrada: boolean;
   relatorio?: Relatorio;
   criadaEm: number;
+  /** Áudio já gerado das falas da personagem (índice da fala → WAV). Some com a sessão. */
+  audios?: Map<number, Promise<Buffer>>;
 };
 
 export type Progresso = {
