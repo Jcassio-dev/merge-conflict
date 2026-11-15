@@ -53,6 +53,12 @@ services:
       LLM_MODEL_AVALIADORA: "${LLM_MODEL_AVALIADORA:-}"
       LLM_TIMEOUT_MS: "${LLM_TIMEOUT_MS:-30000}"
       LLM_JSON_MODE: "${LLM_JSON_MODE:-true}"
+      LLM_REASONING_EFFORT: "${LLM_REASONING_EFFORT:-}"
+      LLM_REASONING_EFFORT_AVALIADORA: "${LLM_REASONING_EFFORT_AVALIADORA:-}"
+      TTS_MODEL: "${TTS_MODEL:-}"
+      TTS_VOZ: "${TTS_VOZ:-Kore}"
+      TTS_API_KEY: "${TTS_API_KEY:-}"
+      TTS_TIMEOUT_MS: "${TTS_TIMEOUT_MS:-20000}"
     labels:
       traefik.enable: "true"
       # /painel/api/sessoes → /api/sessoes (as rotas da API já começam com /api)

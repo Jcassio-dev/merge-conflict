@@ -150,6 +150,8 @@ LLM_PROVIDER=openai-compatible
 LLM_BASE_URL=...      # exemplos no próprio .env
 LLM_API_KEY=...
 LLM_MODEL=...
+LLM_REASONING_EFFORT=low
+TTS_MODEL=gemini-3.8-flash-lite-tts   # voz da Marina; vazio = só texto
 ```
 
 ```bash
