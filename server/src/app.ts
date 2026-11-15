@@ -36,7 +36,9 @@ export function buildApp(opts: AppOptions) {
   const store = new Store();
   const limite = opts.limiteSessoesPorHora ?? 0;
   const inicios: number[] = []; // horários (ms) das sessões criadas na última hora
-  app.register(cors, { origin: opts.panelOrigin ?? true });
+  // Uma ou mais origens separadas por vírgula (ex.: painel e mapa em portas diferentes no local).
+  const origens = (opts.panelOrigin ?? "").split(",").map((o) => o.trim()).filter(Boolean);
+  app.register(cors, { origin: origens.length ? origens : true });
 
   app.get("/health", async () => ({ ok: true }));
 

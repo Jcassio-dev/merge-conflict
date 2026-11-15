@@ -165,3 +165,14 @@ describe("raciocínio da LLM (reasoning_effort)", () => {
     expect(fetchFalso).toHaveBeenCalledTimes(3);
   });
 });
+
+describe("CORS", () => {
+  it("aceita uma lista de origens separadas por vírgula", async () => {
+    const app = buildApp({ llm: new MockProvider(), panelOrigin: "http://a, http://b" });
+    const pede = (origin: string) =>
+      app.inject({ method: "GET", url: "/api/progresso/j1", headers: { origin } });
+    expect((await pede("http://b")).headers["access-control-allow-origin"]).toBe("http://b");
+    expect((await pede("http://a")).headers["access-control-allow-origin"]).toBe("http://a");
+    expect((await pede("http://c")).headers["access-control-allow-origin"]).toBeUndefined();
+  });
+});
