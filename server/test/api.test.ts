@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { buildApp } from "../src/app.js";
 import { MockProvider } from "../src/llm/mock.js";
 import { OpenAICompatibleProvider } from "../src/llm/openaiCompatible.js";
-import type { ChatMessage, CompleteOptions, LlmProvider } from "../src/llm/types.js";
+import { LlmError, type ChatMessage, type CompleteOptions, type LlmProvider } from "../src/llm/types.js";
 
 async function iniciar(llm: LlmProvider = new MockProvider()) {
   const app = buildApp({ llm });
@@ -163,6 +163,40 @@ describe("raciocínio da LLM (reasoning_effort)", () => {
       vi.unstubAllGlobals();
     }
     expect(fetchFalso).toHaveBeenCalledTimes(3);
+  });
+});
+
+describe("resposta cortada pelo limite de tokens", () => {
+  it("o provedor recusa resposta cortada (finish_reason length) em vez de devolver meia frase", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        new Response(JSON.stringify({ choices: [{ finish_reason: "length", message: { content: "Olha, eu sei que" } }] })),
+      ),
+    );
+    try {
+      const p = new OpenAICompatibleProvider({ baseUrl: "http://x", apiKey: "k", model: "m", timeoutMs: 1000, jsonMode: true });
+      await expect(p.complete([{ role: "user", content: "oi" }])).rejects.toBeInstanceOf(LlmError);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("dá folga para o raciocínio do modelo: 1024 tokens na fala e 4096 no relatório", async () => {
+    const mock = new MockProvider();
+    const vistas: CompleteOptions[] = [];
+    const llm: LlmProvider = {
+      complete: async (msgs, o = {}) => {
+        vistas.push(o);
+        return mock.complete(msgs);
+      },
+    };
+    const app = buildApp({ llm });
+    const s = await app.inject({ method: "POST", url: "/api/sessoes", payload: { jogadorId: "j1" } });
+    const id = s.json().sessaoId as string;
+    await app.inject({ method: "POST", url: `/api/sessoes/${id}/falas`, payload: { texto: "Hum, deixa eu pensar." } });
+    await app.inject({ method: "POST", url: `/api/sessoes/${id}/relatorio` });
+    expect(vistas.map((v) => v.maxTokens)).toEqual([1024, 4096]);
   });
 });
 

@@ -51,7 +51,7 @@ export async function gerarRelatorio(
   ];
   // Uma nova tentativa se o JSON vier inválido ou com citação inventada.
   for (let tentativa = 1; tentativa <= 2; tentativa++) {
-    const bruto = await llm.complete(mensagens, { ...opcoes, json: true, maxTokens: 900 });
+    const bruto = await llm.complete(mensagens, { ...opcoes, json: true, maxTokens: 4096 });
     try {
       const r = RelatorioSchema.parse(extrairJson(bruto));
       if (citacoesReais(r, falas)) return r;

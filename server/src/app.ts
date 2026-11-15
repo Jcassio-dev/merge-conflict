@@ -103,7 +103,9 @@ export function buildApp(opts: AppOptions) {
     let resposta: string;
     try {
       resposta = await opts.llm.complete(mensagens, {
-        maxTokens: 200,
+        // O limite inclui o raciocínio do modelo (Gemini 3): com 200, uma fala agressiva
+        // fazia o modelo pensar mais e a resposta saía cortada. O prompt já pede falas curtas.
+        maxTokens: 1024,
         reasoningEffort: opts.reasoningEffortPersonagem,
       });
     } catch (err) {

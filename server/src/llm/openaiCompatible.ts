@@ -54,8 +54,11 @@ export class OpenAICompatibleProvider implements LlmProvider {
         // Não logar o corpo da requisição: ele contém a conversa do jogador.
         throw new LlmError(`Provedor respondeu ${res.status}`);
       }
-      const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
-      const content = data.choices?.[0]?.message?.content;
+      const data = (await res.json()) as { choices?: { finish_reason?: string; message?: { content?: string } }[] };
+      const escolha = data.choices?.[0];
+      // Cortada pelo limite de tokens: meia frase confunde o jogador e seria avaliada no relatório.
+      if (escolha?.finish_reason === "length") throw new LlmError("Resposta cortada pelo limite de tokens");
+      const content = escolha?.message?.content;
       if (!content) throw new LlmError("Resposta vazia do provedor");
       return content.trim();
     } catch (err) {
