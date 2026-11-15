@@ -1,0 +1,72 @@
+# Complemento ao docker-compose.yaml oficial do WorkAdventure (v1.34.5):
+# adiciona o painel do jogo e a API, atrás do mesmo Traefik e no mesmo domínio.
+#
+#   https://<DOMAIN>/              → WorkAdventure (play)
+#   https://<DOMAIN>/painel/       → painel (nginx, arquivos estáticos)
+#   https://<DOMAIN>/painel/api/   → API (Node). Chega no container como /api/...
+#
+# Por que /painel/api e não /api: o WorkAdventure já usa /api (container "back").
+# Mesmo domínio = sem CORS e sem DNS extra.
+
+services:
+  painel:
+    build:
+      context: ../panel
+      args:
+        PAINEL_BASE: /painel/
+        VITE_API_URL: /painel
+    image: conversas-dificeis/painel:local
+    mem_limit: 64m
+    restart: ${RESTART_POLICY}
+    labels:
+      traefik.enable: "true"
+      traefik.http.middlewares.strip-painel.stripprefix.prefixes: "/painel"
+      traefik.http.routers.painel.rule: "Host(`${DOMAIN}`) && PathPrefix(`/painel`)"
+      traefik.http.routers.painel.priority: "100"
+      traefik.http.routers.painel.entryPoints: "web"
+      traefik.http.routers.painel.middlewares: "strip-painel@docker"
+      traefik.http.routers.painel.service: "painel"
+      traefik.http.routers.painel-ssl.rule: "Host(`${DOMAIN}`) && PathPrefix(`/painel`)"
+      traefik.http.routers.painel-ssl.priority: "100"
+      traefik.http.routers.painel-ssl.entryPoints: "websecure"
+      traefik.http.routers.painel-ssl.middlewares: "strip-painel@docker"
+      traefik.http.routers.painel-ssl.service: "painel"
+      traefik.http.routers.painel-ssl.tls: "true"
+      traefik.http.routers.painel-ssl.tls.certresolver: "myresolver"
+      traefik.http.services.painel.loadbalancer.server.port: "80"
+
+  api:
+    build:
+      context: ../server
+    image: conversas-dificeis/api:local
+    mem_limit: 256m
+    restart: ${RESTART_POLICY}
+    environment:
+      PORT: "8787"
+      PANEL_ORIGIN: "https://${DOMAIN}"
+      TRUST_PROXY: "true"
+      LIMITE_SESSOES_POR_HORA: "${LIMITE_SESSOES_POR_HORA:-300}"
+      LLM_PROVIDER: "${LLM_PROVIDER:-mock}"
+      LLM_BASE_URL: "${LLM_BASE_URL:-}"
+      LLM_API_KEY: "${LLM_API_KEY:-}"
+      LLM_MODEL: "${LLM_MODEL:-}"
+      LLM_MODEL_AVALIADORA: "${LLM_MODEL_AVALIADORA:-}"
+      LLM_TIMEOUT_MS: "${LLM_TIMEOUT_MS:-30000}"
+      LLM_JSON_MODE: "${LLM_JSON_MODE:-true}"
+    labels:
+      traefik.enable: "true"
+      # /painel/api/sessoes → /api/sessoes (as rotas da API já começam com /api)
+      traefik.http.middlewares.strip-painel-api.stripprefix.prefixes: "/painel"
+      traefik.http.routers.painel-api.rule: "Host(`${DOMAIN}`) && PathPrefix(`/painel/api/`)"
+      traefik.http.routers.painel-api.priority: "200"
+      traefik.http.routers.painel-api.entryPoints: "web"
+      traefik.http.routers.painel-api.middlewares: "strip-painel-api@docker"
+      traefik.http.routers.painel-api.service: "painel-api"
+      traefik.http.routers.painel-api-ssl.rule: "Host(`${DOMAIN}`) && PathPrefix(`/painel/api/`)"
+      traefik.http.routers.painel-api-ssl.priority: "200"
+      traefik.http.routers.painel-api-ssl.entryPoints: "websecure"
+      traefik.http.routers.painel-api-ssl.middlewares: "strip-painel-api@docker"
+      traefik.http.routers.painel-api-ssl.service: "painel-api"
+      traefik.http.routers.painel-api-ssl.tls: "true"
+      traefik.http.routers.painel-api-ssl.tls.certresolver: "myresolver"
+      traefik.http.services.painel-api.loadbalancer.server.port: "8787"

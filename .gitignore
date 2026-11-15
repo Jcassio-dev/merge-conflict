@@ -1,0 +1,17 @@
+node_modules/
+dist/
+server/.env
+panel/.env
+map/.env.secret
+*.log
+deploy/.env
+deploy/wa/
+
+# Ambiente local
+.env
+!.env.example
+
+# Arquivos do assistente (fora do repositório)
+CLAUDE.md
+CLAUDE.local.md
+.claude/

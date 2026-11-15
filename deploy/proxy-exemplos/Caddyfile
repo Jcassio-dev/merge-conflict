@@ -1,0 +1,11 @@
+# Modo "atrás de proxy": acrescente este bloco ao Caddyfile que já existe.
+# O Caddy emite o certificado do domínio do jogo e repassa tudo (inclusive
+# WebSocket) para o Traefik do WorkAdventure.
+jogo.seudominio.com.br {
+	reverse_proxy 127.0.0.1:8080
+}
+
+# Se o Caddy roda num container SEM network_mode: host, 127.0.0.1 é o próprio
+# container. Use o IP do host na rede do Docker, por exemplo:
+#	reverse_proxy 172.17.0.1:8080
+# e, no .env, HTTP_PORT=172.17.0.1:8080

@@ -1,0 +1,21 @@
+# SÓ USE SE as portas 80/443 já estiverem ocupadas por outro proxy no servidor
+# (por exemplo, o Caddy ou o nginx que serve o seu LiveKit).
+#
+# Neste modo o seu proxy atual cuida do HTTPS do domínio do jogo e repassa tudo
+# para o Traefik do WorkAdventure em http://127.0.0.1:8080 (só HTTP, só local).
+# No .env: HTTP_PORT=127.0.0.1:8080 e HTTPS_PORT=127.0.0.1:8443.
+# Exemplos de configuração do proxy em proxy-exemplos/.
+
+services:
+  reverse-proxy:
+    command:
+      - --log.level=${LOG_LEVEL}
+      - --providers.docker
+      - --providers.docker.exposedbydefault=false
+      - --entryPoints.web.address=:80
+      # o proxy de fora fica na mesma máquina: aceita os cabeçalhos X-Forwarded-* dele
+      - --entryPoints.web.forwardedHeaders.insecure=true
+      # websecure continua existindo (os rótulos oficiais apontam para ele), mas só
+      # escuta em 127.0.0.1:8443 e ninguém usa. Sem certificado do Let's Encrypt aqui.
+      - --entryPoints.websecure.address=:443
+      - --entryPoints.grpc.address=:50051
