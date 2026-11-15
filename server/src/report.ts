@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { lerPrompt } from "./scenarios.js";
 import type { Fala } from "./sessions.js";
-import { LlmError, type LlmProvider } from "./llm/types.js";
+import { LlmError, type CompleteOptions, type LlmProvider } from "./llm/types.js";
 
 const Nivel = z.enum(["a_melhorar", "adequado", "bom"]);
 const Criterio = z.enum(["assertividade", "escuta", "negociacao", "conflitos"]);
@@ -43,7 +43,7 @@ function extrairJson(texto: string): unknown {
 export async function gerarRelatorio(
   llm: LlmProvider,
   falas: Fala[],
-  modelo?: string,
+  opcoes: Pick<CompleteOptions, "model" | "reasoningEffort"> = {},
 ): Promise<Relatorio> {
   const mensagens = [
     { role: "system" as const, content: `${lerPrompt("avaliadora.md")}\n\n${lerPrompt("rubrica.md")}` },
@@ -51,7 +51,7 @@ export async function gerarRelatorio(
   ];
   // Uma nova tentativa se o JSON vier inválido ou com citação inventada.
   for (let tentativa = 1; tentativa <= 2; tentativa++) {
-    const bruto = await llm.complete(mensagens, { json: true, maxTokens: 900, model: modelo });
+    const bruto = await llm.complete(mensagens, { ...opcoes, json: true, maxTokens: 900 });
     try {
       const r = RelatorioSchema.parse(extrairJson(bruto));
       if (citacoesReais(r, falas)) return r;

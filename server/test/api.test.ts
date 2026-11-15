@@ -1,7 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { buildApp } from "../src/app.js";
 import { MockProvider } from "../src/llm/mock.js";
-import type { ChatMessage, LlmProvider } from "../src/llm/types.js";
+import { OpenAICompatibleProvider } from "../src/llm/openaiCompatible.js";
+import type { ChatMessage, CompleteOptions, LlmProvider } from "../src/llm/types.js";
 
 async function iniciar(llm: LlmProvider = new MockProvider()) {
   const app = buildApp({ llm });
@@ -101,5 +102,66 @@ describe("conversa do Cenário 1", () => {
     const r = await nova();
     expect(r.statusCode).toBe(429);
     expect(r.json().erro).toContain("Tente de novo mais tarde");
+  });
+});
+
+describe("raciocínio da LLM (reasoning_effort)", () => {
+  it("personagem e avaliadora recebem modelo e esforço configurados", async () => {
+    const mock = new MockProvider();
+    const vistas: CompleteOptions[] = [];
+    const llm: LlmProvider = {
+      complete: async (msgs, o = {}) => {
+        vistas.push(o);
+        return mock.complete(msgs);
+      },
+    };
+    const app = buildApp({
+      llm,
+      modeloAvaliadora: "modelo-avaliadora",
+      reasoningEffortPersonagem: "low",
+      reasoningEffortAvaliadora: "medium",
+    });
+    const s = await app.inject({ method: "POST", url: "/api/sessoes", payload: { jogadorId: "j1" } });
+    const id = s.json().sessaoId as string;
+    await falar(app, id, "Tá bom, a gente dá um jeito.");
+    await app.inject({ method: "POST", url: `/api/sessoes/${id}/relatorio` });
+    expect(vistas[0]).toMatchObject({ reasoningEffort: "low" });
+    expect(vistas.at(-1)).toMatchObject({ json: true, model: "modelo-avaliadora", reasoningEffort: "medium" });
+  });
+
+  it("provedor só envia reasoning_effort quando configurado", async () => {
+    const corpos: Record<string, unknown>[] = [];
+    const fetchFalso = vi.fn(async (_url: string, init: RequestInit) => {
+      corpos.push(JSON.parse(init.body as string));
+      return new Response(JSON.stringify({ choices: [{ message: { content: "oi" } }] }));
+    });
+    vi.stubGlobal("fetch", fetchFalso);
+    try {
+      const p = new OpenAICompatibleProvider({ baseUrl: "http://x", apiKey: "k", model: "m", timeoutMs: 1000, jsonMode: true });
+      await p.complete([{ role: "user", content: "oi" }], { reasoningEffort: "low" });
+      await p.complete([{ role: "user", content: "oi" }]);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+    expect(corpos[0]).toMatchObject({ reasoning_effort: "low" });
+    expect(corpos[1]).not.toHaveProperty("reasoning_effort");
+  });
+
+  it("repete uma vez quando o provedor está sobrecarregado (503) e não repete erro 400", async () => {
+    const respostas = [
+      new Response("", { status: 503 }),
+      new Response(JSON.stringify({ choices: [{ message: { content: "voltou" } }] })),
+      new Response("", { status: 400 }),
+    ];
+    const fetchFalso = vi.fn(async () => respostas.shift()!);
+    vi.stubGlobal("fetch", fetchFalso);
+    try {
+      const p = new OpenAICompatibleProvider({ baseUrl: "http://x", apiKey: "k", model: "m", timeoutMs: 1000, jsonMode: true, retryDelayMs: 0 });
+      expect(await p.complete([{ role: "user", content: "oi" }])).toBe("voltou");
+      await expect(p.complete([{ role: "user", content: "oi" }])).rejects.toThrow("400");
+    } finally {
+      vi.unstubAllGlobals();
+    }
+    expect(fetchFalso).toHaveBeenCalledTimes(3);
   });
 });

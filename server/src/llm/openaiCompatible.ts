@@ -6,6 +6,8 @@ type Config = {
   model: string;
   timeoutMs: number;
   jsonMode: boolean;
+  /** Espera antes de repetir uma chamada que falhou com 429/5xx (padrão 500 ms). */
+  retryDelayMs?: number;
 };
 
 /**
@@ -29,14 +31,25 @@ export class OpenAICompatibleProvider implements LlmProvider {
       temperature: opts.json ? 0.2 : 0.7,
     };
     if (opts.json && this.cfg.jsonMode) body.response_format = { type: "json_object" };
+    // Menos raciocínio = resposta mais rápida e mais barata (Gemini 3 não permite desligar).
+    if (opts.reasoningEffort) body.reasoning_effort = opts.reasoningEffort;
 
     try {
-      const res = await fetch(`${this.cfg.baseUrl.replace(/\/$/, "")}/chat/completions`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${this.cfg.apiKey}` },
-        body: JSON.stringify(body),
-        signal: controller.signal,
-      });
+      const chamar = () =>
+        fetch(`${this.cfg.baseUrl.replace(/\/$/, "")}/chat/completions`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${this.cfg.apiKey}` },
+          body: JSON.stringify(body),
+          signal: controller.signal,
+        });
+      let res = await chamar();
+      // Sobrecarga ou falha passageira do provedor (429/5xx): uma nova tentativa,
+      // dentro do mesmo timeout, para o jogador não ver erro à toa.
+      if (res.status === 429 || res.status >= 500) {
+        await res.body?.cancel();
+        await new Promise((r) => setTimeout(r, this.cfg.retryDelayMs ?? 500));
+        res = await chamar();
+      }
       if (!res.ok) {
         // Não logar o corpo da requisição: ele contém a conversa do jogador.
         throw new LlmError(`Provedor respondeu ${res.status}`);

@@ -10,6 +10,9 @@ export type AppOptions = {
   llm: LlmProvider;
   panelOrigin?: string;
   modeloAvaliadora?: string;
+  /** reasoning_effort enviado nas falas da personagem e no relatório (vazio: padrão do provedor). */
+  reasoningEffortPersonagem?: string;
+  reasoningEffortAvaliadora?: string;
   logger?: boolean;
   /** Teto de conversas novas por hora, somando todos os jogadores (0 = sem teto). Protege o gasto com a LLM. */
   limiteSessoesPorHora?: number;
@@ -74,7 +77,10 @@ export function buildApp(opts: AppOptions) {
 
     let resposta: string;
     try {
-      resposta = await opts.llm.complete(mensagens, { maxTokens: 200 });
+      resposta = await opts.llm.complete(mensagens, {
+        maxTokens: 200,
+        reasoningEffort: opts.reasoningEffortPersonagem,
+      });
     } catch (err) {
       req.log.warn({ err: err instanceof Error ? err.message : err }, "falha na LLM (personagem)");
       return reply.code(502).send({ erro: ERRO_LLM });
@@ -100,7 +106,10 @@ export function buildApp(opts: AppOptions) {
     }
     if (!s.relatorio) {
       try {
-        s.relatorio = await gerarRelatorio(opts.llm, s.falas, opts.modeloAvaliadora);
+        s.relatorio = await gerarRelatorio(opts.llm, s.falas, {
+          model: opts.modeloAvaliadora,
+          reasoningEffort: opts.reasoningEffortAvaliadora,
+        });
       } catch (err) {
         req.log.warn({ err: err instanceof Error ? err.message : err }, "falha na LLM (avaliadora)");
         return reply.code(502).send({ erro: ERRO_LLM });

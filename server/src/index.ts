@@ -29,6 +29,8 @@ const app = buildApp({
   llm: criarProvedor(),
   panelOrigin: env.PANEL_ORIGIN,
   modeloAvaliadora: env.LLM_MODEL_AVALIADORA || undefined,
+  reasoningEffortPersonagem: env.LLM_REASONING_EFFORT || undefined,
+  reasoningEffortAvaliadora: env.LLM_REASONING_EFFORT_AVALIADORA || env.LLM_REASONING_EFFORT || undefined,
   logger: true,
   limiteSessoesPorHora: Number(env.LIMITE_SESSOES_POR_HORA ?? 0),
   trustProxy: env.TRUST_PROXY === "true",

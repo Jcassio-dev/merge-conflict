@@ -9,6 +9,8 @@ export type CompleteOptions = {
   maxTokens?: number;
   /** Sobrescreve o modelo padrão (ex.: modelo da avaliadora). */
   model?: string;
+  /** Quanto o modelo raciocina antes de responder (ex.: "low"). Vazio: padrão do provedor. */
+  reasoningEffort?: string;
 };
 
 /** Toda chamada à LLM passa por esta interface. */
