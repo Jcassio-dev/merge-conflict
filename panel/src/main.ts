@@ -1,4 +1,5 @@
 import "./style.css";
+import { retratoMarina } from "./retrato";
 import { api, ApiError, type Fala, type Nivel, type NomeCriterio, type Relatorio } from "./api";
 
 // ---------- parâmetros e armazenamento local ----------
@@ -124,7 +125,7 @@ function telaDialogo(): string {
        <div class="acoes"><button data-acao="pausar">II Pausar</button><button data-acao="ficha">Ver ficha</button></div>`;
   return `${barra("Sala Projeto", encerrada ? 6 : 3)}
   <section class="dialogo">
-    <div class="personagem" aria-hidden="true"><div class="avatar"></div><strong>Marina</strong><span>Product Owner</span></div>
+    <div class="personagem" aria-hidden="true"><div class="retrato">${retratoMarina()}</div><div><strong>Marina</strong><br><span>Product Owner</span></div></div>
     <div class="conversa">
       <div class="falas" id="falas">${falas}
         ${estado.aguardando && !encerrada ? `<p class="digitando" role="status">Marina está digitando…</p>` : ""}</div>

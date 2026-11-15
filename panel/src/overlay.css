@@ -1,0 +1,17 @@
+/* Cartões por cima do jogo, no mesmo estilo do painel. O fundo do iframe fica transparente. */
+@import "./style.css";
+
+html, body.overlay { background: transparent; min-height: 0; }
+body.overlay { margin: 0; padding: 4px 4px 8px; }
+#overlay .cartao { padding: 12px 14px; text-align: center; }
+#overlay h1 { font-size: 1.15rem; margin-bottom: 6px; }
+#overlay p { margin-bottom: 10px; }
+#overlay button { width: 100%; }
+
+.cartao-marina { display: flex; align-items: center; gap: 12px; text-align: left; }
+.cartao-marina .retrato { flex: none; width: 60px; height: 56px; padding: 4px 5px 0; margin: 0; border-width: 3px; }
+.cartao-marina .texto { flex: 1; }
+#overlay .dica { margin: 6px 0 0; font-size: 0.85rem; color: var(--tinta-suave); text-align: center; }
+/* Sem teclado (celular, tablet): não fala em ESPAÇO. */
+@media (hover: none) and (pointer: coarse) { #overlay .dica { display: none; } }
+.cartao-marina button { white-space: nowrap; font-size: 0.95rem; padding: 8px 10px; }

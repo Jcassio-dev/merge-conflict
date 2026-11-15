@@ -7,7 +7,9 @@ COPY . .
 # Mesmo domínio do WorkAdventure: o painel fica em /painel/ e a API em /painel/api/.
 ARG PAINEL_BASE=/painel/
 ARG VITE_API_URL=/painel
-ENV PAINEL_BASE=$PAINEL_BASE VITE_API_URL=$VITE_API_URL
+# Vazio: a API dos iframes vem do próprio domínio do WorkAdventure.
+ARG VITE_WA_URL=
+ENV PAINEL_BASE=$PAINEL_BASE VITE_API_URL=$VITE_API_URL VITE_WA_URL=$VITE_WA_URL
 RUN npm run build
 
 FROM nginx:1.29-alpine
