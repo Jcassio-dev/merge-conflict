@@ -123,8 +123,9 @@ Confira no navegador:
 
 No seu computador (ou no servidor), na pasta `map/` do projeto:
 
-1. No `map/.env`, aponte o mapa para o painel publicado:
-   `VITE_PANEL_URL=https://<dominio>/painel/`
+1. No `map/.env`, aponte o mapa para o painel e para a API publicados:
+   `VITE_PANEL_URL=https://<dominio>/painel/` e
+   `VITE_API_URL=https://<dominio>/painel`
 2. Rode `npm install` (se ainda não rodou) e `npm run upload`. Ele pergunta:
    - URL do map-storage: `https://<dominio>/map-storage/`
    - API key: o valor de `MAP_STORAGE_AUTHENTICATION_TOKEN` do `.env` do servidor
@@ -202,6 +203,7 @@ necessidade. (Persistir em disco é a próxima melhoria do `server/`.)
 | Certificado não sai (aviso de site inseguro) | DNS ainda não aponta para o servidor, ou porta 80 fechada no firewall. `docker compose logs reverse-proxy` |
 | Mapa abre, mas vídeo entre jogadores não conecta | `TURN_SERVER` ou `TURN_STATIC_AUTH_SECRET` errados; teste com dois jogadores em redes diferentes (ex.: 4G) |
 | Mais de 4 pessoas juntas e o vídeo cai | `LIVEKIT_*` errados; veja `docker compose logs back` |
-| Painel não abre ao entrar na sala | `VITE_PANEL_URL` errado no `map/.env` na hora do upload; corrija e rode `npm run upload` de novo |
+| Painel não abre ao apertar ESPAÇO perto da Marina | `VITE_PANEL_URL` errado no `map/.env` na hora do upload; corrija e rode `npm run upload` de novo |
+| Balão de boas-vindas volta mesmo depois de concluir | `VITE_API_URL` errado no `map/.env` na hora do upload |
 | Painel abre, mas “A IA não respondeu agora” | Chave, modelo ou URL da LLM; `docker compose logs api` |
 | `npm run upload` dá 401 | API key diferente de `MAP_STORAGE_AUTHENTICATION_TOKEN` |
