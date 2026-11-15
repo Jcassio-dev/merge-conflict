@@ -38,8 +38,8 @@ npm install
 npm run start           # abre a página do starter kit; clique em "Test this map"
 ```
 
-No mapa, siga o caminho verde até a Marina, na sala Projeto à direita. Perto
-dela, aperte ESPAÇO: o painel abre na lateral.
+No mapa, vá até a Marina (com o balão "…"), na sala Projeto à direita. Perto
+dela, aperte ESPAÇO ou toque em "Conversar com a Marina": o painel abre na lateral.
 
 ## Usar a IA de verdade
 

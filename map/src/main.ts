@@ -11,34 +11,44 @@ const CENARIO = "cenario-1";
 // Áreas desenhadas no Tiled (camada floorLayer).
 const ZONA_MARINA = "marina";
 const SALA = "sala-projeto";
-// Objeto do Tiled onde o balão de boas-vindas aparece.
-const ANCORA_BOAS_VINDAS = "boas-vindas";
+// Camada do Tiled com o balão "…" acima da Marina; some para quem já concluiu.
+const CAMADA_BALAO = "balao-marina";
+// Variável de jogador que as janelas por cima do jogo (panel/overlay.html) usam para avisar cliques.
+const VAR_ACAO = "conversas_acao";
 
-type Fechavel = { close: () => unknown };
-type Painel = { close: () => Promise<void> };
+type Fechavel = { close: () => Promise<void> };
 
-let painel: Painel | undefined;
+let painel: Fechavel | undefined;
 let abrindoPainel = false;
 let naZonaDaMarina = false;
 let mensagem: { remove: () => unknown } | undefined;
 let balao: Fechavel | undefined;
+let balaoFechado = false;
+let cartaoMarina: Fechavel | undefined;
 
 WA.onInit()
     .then(async () => {
         WA.room.area.onEnter(ZONA_MARINA).subscribe(entrarNaZonaDaMarina);
         WA.room.area.onLeave(ZONA_MARINA).subscribe(sairDaZonaDaMarina);
         WA.room.area.onEnter(SALA).subscribe(fecharBalao);
+        WA.player.state.onVariableChange(VAR_ACAO).subscribe((valor) => {
+            const acao = String(valor ?? "").split(":")[0];
+            if (acao === "fechar-boas-vindas") fecharBalao();
+            if (acao === "conversar" && naZonaDaMarina) void abrirPainel();
+        });
 
         bootstrapExtra().catch((e) => console.error(e));
 
-        // O popup só aparece com a cena pronta; no WA.onInit ela ainda pode estar carregando
-        // (ex.: tela "Continue in browser"). Por isso o balão abre no primeiro passo do jogador.
-        if (!(await concluiuCenario())) {
-            const assinatura = WA.player.onPlayerMove(() => {
-                assinatura.unsubscribe();
-                mostrarBoasVindas();
-            });
+        if (await concluiuCenario()) {
+            WA.room.hideLayer(CAMADA_BALAO);
+            return;
         }
+        // A janela só aparece com a cena pronta; no WA.onInit ela ainda pode estar carregando
+        // (ex.: tela "Continue in browser"). Por isso o balão abre no primeiro passo do jogador.
+        const assinatura = WA.player.onPlayerMove(() => {
+            assinatura.unsubscribe();
+            void mostrarBoasVindas();
+        });
     })
     .catch((e) => console.error(e));
 
@@ -61,39 +71,98 @@ async function concluiuCenario(): Promise<boolean> {
     }
 }
 
-function mostrarBoasVindas(): void {
-    balao = WA.ui.openPopup(ANCORA_BOAS_VINDAS, "Entre na sala Projeto para começar o Cenário 1", [
-        { label: "Entendi", className: "primary", callback: fecharBalao },
-    ]);
+function urlOverlay(modo: string, extras: Record<string, string> = {}): string {
+    const url = new URL("overlay.html", PANEL_URL.endsWith("/") ? PANEL_URL : `${PANEL_URL}/`);
+    url.searchParams.set("modo", modo);
+    for (const [k, v] of Object.entries(extras)) url.searchParams.set(k, v);
+    return url.toString();
+}
+
+async function mostrarBoasVindas(): Promise<void> {
+    try {
+        const aberto = await WA.ui.website.open({
+            url: urlOverlay("boas-vindas"),
+            allowApi: true,
+            position: { vertical: "top", horizontal: "middle" },
+            size: { width: "320px", height: "170px" },
+            margin: { top: "16px" },
+        });
+        // O jogador pode ter entrado na sala (ou clicado em Entendi) enquanto a janela abria.
+        if (balaoFechado) await aberto.close();
+        else balao = aberto;
+    } catch (e) {
+        console.error(e);
+    }
 }
 
 function fecharBalao(): void {
-    balao?.close();
+    balaoFechado = true;
+    balao?.close().catch((e) => console.error(e));
     balao = undefined;
+}
+
+async function mostrarCartaoMarina(deNovo: boolean): Promise<void> {
+    try {
+        const aberto = await WA.ui.website.open({
+            url: urlOverlay("marina", deNovo ? { repetir: "1" } : {}),
+            allowApi: true,
+            position: { vertical: "bottom", horizontal: "middle" },
+            size: { width: "340px", height: "124px" },
+            // Acima da mensagem "Aperte ESPAÇO" e da barra de ações do WorkAdventure.
+            margin: { bottom: "120px" },
+        });
+        if (!naZonaDaMarina || painel || abrindoPainel) await aberto.close();
+        else cartaoMarina = aberto;
+    } catch (e) {
+        console.error(e);
+    }
+}
+
+function fecharCartaoMarina(): void {
+    cartaoMarina?.close().catch((e) => console.error(e));
+    cartaoMarina = undefined;
 }
 
 async function entrarNaZonaDaMarina(): Promise<void> {
     naZonaDaMarina = true;
-    const texto = (await concluiuCenario())
-        ? "Aperte ESPAÇO para conversar de novo com a Marina"
-        : "Aperte ESPAÇO para conversar com a Marina";
+    const deNovo = await concluiuCenario();
     // O jogador pode ter saído da zona enquanto a API respondia.
     if (!naZonaDaMarina || painel || abrindoPainel) return;
+    mostrarConvites(deNovo);
+}
+
+/** ESPAÇO (mensagem do WorkAdventure) para o teclado e cartão com botão para o toque. */
+function mostrarConvites(deNovo: boolean): void {
+    const texto = deNovo
+        ? "Aperte ESPAÇO para conversar de novo com a Marina"
+        : "Aperte ESPAÇO para conversar com a Marina";
     mensagem?.remove();
-    mensagem = WA.ui.displayActionMessage({ message: texto, callback: abrirPainel });
+    mensagem = WA.ui.displayActionMessage({
+        message: texto,
+        callback: () => {
+            mensagem = undefined; // o WorkAdventure some com a mensagem ao apertar ESPAÇO
+            void abrirPainel();
+        },
+    });
+    if (!cartaoMarina) void mostrarCartaoMarina(deNovo);
+}
+
+function esconderConvites(): void {
+    mensagem?.remove();
+    mensagem = undefined;
+    fecharCartaoMarina();
 }
 
 function sairDaZonaDaMarina(): void {
     naZonaDaMarina = false;
-    mensagem?.remove();
-    mensagem = undefined;
+    esconderConvites();
     fecharPainel();
 }
 
 async function abrirPainel(): Promise<void> {
-    mensagem = undefined; // o WorkAdventure some com a mensagem ao apertar ESPAÇO
     if (painel || abrindoPainel) return;
     abrindoPainel = true;
+    esconderConvites();
     try {
         const url = new URL(PANEL_URL);
         url.searchParams.set("cenario", CENARIO);

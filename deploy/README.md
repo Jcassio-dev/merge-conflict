@@ -204,6 +204,7 @@ necessidade. (Persistir em disco é a próxima melhoria do `server/`.)
 | Mapa abre, mas vídeo entre jogadores não conecta | `TURN_SERVER` ou `TURN_STATIC_AUTH_SECRET` errados; teste com dois jogadores em redes diferentes (ex.: 4G) |
 | Mais de 4 pessoas juntas e o vídeo cai | `LIVEKIT_*` errados; veja `docker compose logs back` |
 | Painel não abre ao apertar ESPAÇO perto da Marina | `VITE_PANEL_URL` errado no `map/.env` na hora do upload; corrija e rode `npm run upload` de novo |
+| Cartões por cima do jogo (boas-vindas, "Conversar com a Marina") não aparecem ou o botão não faz nada | `VITE_PANEL_URL` errado (o cartão é `<painel>/overlay.html`) ou o painel não acha `/iframe_api.js` no domínio do WorkAdventure (`VITE_WA_URL` no build do painel; vazio = mesmo domínio) |
 | Balão de boas-vindas volta mesmo depois de concluir | `VITE_API_URL` errado no `map/.env` na hora do upload |
 | Painel abre, mas “A IA não respondeu agora” | Chave, modelo ou URL da LLM; `docker compose logs api` |
 | `npm run upload` dá 401 | API key diferente de `MAP_STORAGE_AUTHENTICATION_TOKEN` |
