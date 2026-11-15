@@ -3,9 +3,9 @@
 import { bootstrapExtra } from "@workadventure/scripting-api-extra";
 
 // URL do painel do jogo (pasta panel/). Em produção, defina VITE_PANEL_URL no .env.
-const PANEL_URL: string = import.meta.env.VITE_PANEL_URL ?? "http://localhost:5173";
+const PANEL_URL: string = import.meta.env?.VITE_PANEL_URL ?? "http://localhost:5173";
 // URL da API (pasta server/). Em produção: https://<dominio>/painel
-const API_URL: string = import.meta.env.VITE_API_URL ?? "http://localhost:8787";
+const API_URL: string = import.meta.env?.VITE_API_URL ?? "http://localhost:8787";
 
 const CENARIO = "cenario-1";
 // Áreas desenhadas no Tiled (camada floorLayer).
