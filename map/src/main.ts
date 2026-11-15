@@ -15,8 +15,9 @@ const SALA = "sala-projeto";
 const ANCORA_BOAS_VINDAS = "boas-vindas";
 
 type Fechavel = { close: () => unknown };
+type Painel = { close: () => Promise<void> };
 
-let painel: Fechavel | undefined;
+let painel: Painel | undefined;
 let abrindoPainel = false;
 let naZonaDaMarina = false;
 let mensagem: { remove: () => unknown } | undefined;
@@ -99,7 +100,9 @@ async function abrirPainel(): Promise<void> {
         url.searchParams.set("jogador", jogadorId());
         // allowApi = false: o painel não precisa controlar o mapa.
         // allowPolicy libera o microfone para o modo voz (REQ-13, depois do MVP).
-        const aberto = await WA.nav.openCoWebSite(url.toString(), false, "microphone");
+        // closable = false: o painel fecha ao se afastar da Marina. Com o X do WorkAdventure,
+        // o jogador fecharia o painel sem o script saber e o ESPAÇO pararia de funcionar.
+        const aberto = await WA.nav.openCoWebSite(url.toString(), false, "microphone", undefined, undefined, false);
         // Saiu da zona enquanto o painel abria: fecha na hora.
         if (!naZonaDaMarina) await aberto.close();
         else painel = aberto;
@@ -111,7 +114,7 @@ async function abrirPainel(): Promise<void> {
 }
 
 function fecharPainel(): void {
-    painel?.close();
+    painel?.close().catch((e) => console.error(e));
     painel = undefined;
 }
 
