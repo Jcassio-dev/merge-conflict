@@ -38,10 +38,10 @@ function responderComoMarina(fala: string): string {
 }
 
 function avaliar(transcricao: string): string {
-  const falas = transcricao
-    .split("\n")
-    .filter((l) => l.startsWith("JOGADOR: "))
-    .map((l) => l.slice("JOGADOR: ".length));
+  const json = transcricao.slice(transcricao.indexOf("["));
+  const falas = (JSON.parse(json) as { autor: string; texto: string }[])
+    .filter((f) => f.autor === "jogador")
+    .map((f) => f.texto);
   const todas = falas.join(" ");
   const s = sinais(todas);
   const primeira = falas[0] ?? "";

@@ -17,8 +17,16 @@ export const RelatorioSchema = z.object({
 
 export type Relatorio = z.infer<typeof RelatorioSchema>;
 
+/**
+ * Transcrição em JSON: o texto de cada fala fica entre aspas, então o jogador não
+ * consegue fingir uma linha "MARINA:" nem escrever recados que pareçam parte do formato.
+ */
 export function formatarTranscricao(falas: Fala[]): string {
-  return falas.map((f) => `${f.autor === "jogador" ? "JOGADOR" : "MARINA"}: ${f.texto}`).join("\n");
+  return JSON.stringify(
+    falas.map((f) => ({ autor: f.autor === "jogador" ? "jogador" : "marina", texto: f.texto })),
+    null,
+    1,
+  );
 }
 
 const normalizar = (t: string) => t.toLowerCase().replace(/[“”"'.,!?…]/g, "").replace(/\s+/g, " ").trim();
@@ -47,7 +55,7 @@ export async function gerarRelatorio(
 ): Promise<Relatorio> {
   const mensagens = [
     { role: "system" as const, content: `${lerPrompt("avaliadora.md")}\n\n${lerPrompt("rubrica.md")}` },
-    { role: "user" as const, content: `Transcrição:\n${formatarTranscricao(falas)}` },
+    { role: "user" as const, content: `Transcrição (JSON):\n${formatarTranscricao(falas)}` },
   ];
   // Uma nova tentativa se o JSON vier inválido ou com citação inventada.
   for (let tentativa = 1; tentativa <= 2; tentativa++) {
