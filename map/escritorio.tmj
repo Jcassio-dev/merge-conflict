@@ -9000,7 +9000,7 @@
     {
      "name": "tilesetCopyright",
      "type": "string",
-     "value": "Peças de personagem (Woka) do WorkAdventure, CC-BY-SA 3.0 (ver LICENSE.assets). Balão: arte própria."
+     "value": "Peças de personagem (Woka) do WorkAdventure (play/public/resources/customisation). Balão: arte própria."
     }
    ],
    "tiles": [

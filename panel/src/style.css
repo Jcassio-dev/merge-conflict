@@ -92,11 +92,11 @@ button:focus-visible, textarea:focus-visible {
 .personagem strong { font-family: var(--titulo); color: var(--madeira-escura); font-size: 1.05rem; }
 .personagem span { font-size: 0.85rem; color: var(--tinta-suave); }
 .retrato {
-  width: 104px; height: 96px; margin-bottom: 6px; padding: 6px 8px 0; overflow: hidden;
+  width: 104px; height: 104px; margin-bottom: 6px; padding: 4px; overflow: hidden;
   background: var(--papel-escuro); border: 4px solid var(--madeira); border-radius: var(--raio);
   box-shadow: 0 3px 0 var(--madeira-escura);
 }
-.retrato svg { display: block; width: 100%; height: auto; image-rendering: pixelated; }
+.retrato img { display: block; width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; }
 .falas { display: flex; flex-direction: column; gap: 12px; max-height: 52vh; overflow-y: auto; padding: 4px 4px 10px; }
 .fala {
   max-width: 88%; padding: 8px 12px; border-radius: var(--raio);
@@ -166,7 +166,7 @@ mark { background: var(--marca); color: var(--tinta); padding: 0 2px; }
   #app { padding: 0 10px 20px; }
   .dialogo { grid-template-columns: 1fr; gap: 10px; padding: 12px; }
   .personagem { flex-direction: row; gap: 10px; text-align: left; align-items: center; }
-  .retrato { width: 60px; height: 56px; padding: 4px 5px 0; margin: 0; border-width: 3px; }
+  .retrato { width: 60px; height: 60px; padding: 2px; margin: 0; border-width: 3px; }
   .nivel { grid-template-columns: 1fr; }
   .resposta { flex-direction: column; }
   .falas { max-height: 46vh; }

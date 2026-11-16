@@ -1,13 +1,15 @@
 """Gera map/tilesets/marina.png: a Marina montada com as peças de personagem (Woka)
-do WorkAdventure e o balão "…" animado acima dela.
+do WorkAdventure e o balão "…" animado acima dela. Gera também
+panel/src/assets/marina.png, o mesmo sprite usado como retrato no painel.
 
 Uso: python3 map/ferramentas/montar-marina.py <pasta-woka>
 <pasta-woka> tem as subpastas character_color, character_eyes, character_hairs e
 character_clothes, copiadas de github.com/workadventure/workadventure
 (play/public/resources/customisation). Precisa do Pillow.
 
-Licença: as peças Woka são do WorkAdventure e só podem ser usadas em mapas do
-WorkAdventure (ver map/LICENSE.assets). Por isso o retrato do painel é desenho próprio.
+Licença: as peças Woka são do WorkAdventure. O repositório deles não traz licença
+explícita para elas (conferido em 16/11/2026); o map/LICENSE.assets do starter kit
+cobre os tilesets. Usamos o sprite só no mapa e no painel, que abre dentro do mapa.
 
 Layout (tiles de 32x32, 2 colunas x 4 linhas):
   linha 0      Marina de frente, centralizada nos dois tiles (64x32)
@@ -21,6 +23,7 @@ from PIL import Image, ImageDraw
 
 TILE = 32
 SAIDA = Path(__file__).resolve().parent.parent / "tilesets" / "marina.png"
+RETRATO = Path(__file__).resolve().parents[2] / "panel" / "src" / "assets" / "marina.png"
 
 # Marina 2: pele 7, olhos 1, roupa 15, cabelo 29.
 PECAS = [
@@ -64,12 +67,15 @@ def main() -> None:
     if len(sys.argv) != 2:
         sys.exit(__doc__)
     pasta = Path(sys.argv[1])
+    marina = montar_marina(pasta)
     folha = Image.new("RGBA", (2 * TILE, 4 * TILE))
-    folha.alpha_composite(montar_marina(pasta), (TILE // 2, 0))
+    folha.alpha_composite(marina, (TILE // 2, 0))
     for quadro in range(3):
         folha.alpha_composite(desenhar_balao(quadro + 1), (0, (quadro + 1) * TILE))
     folha.save(SAIDA)
-    print(f"gerado {SAIDA}")
+    RETRATO.parent.mkdir(exist_ok=True)
+    marina.save(RETRATO)
+    print(f"gerado {SAIDA} e {RETRATO}")
 
 
 if __name__ == "__main__":

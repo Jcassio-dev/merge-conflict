@@ -9,7 +9,7 @@ body.overlay { margin: 0; padding: 4px 4px 8px; }
 #overlay button { width: 100%; }
 
 .cartao-marina { display: flex; align-items: center; gap: 12px; text-align: left; }
-.cartao-marina .retrato { flex: none; width: 60px; height: 56px; padding: 4px 5px 0; margin: 0; border-width: 3px; }
+.cartao-marina .retrato { flex: none; width: 60px; height: 60px; padding: 2px; margin: 0; border-width: 3px; }
 .cartao-marina .texto { flex: 1; }
 #overlay .dica { margin: 6px 0 0; font-size: 0.85rem; color: var(--tinta-suave); text-align: center; }
 /* Sem teclado (celular, tablet): não fala em ESPAÇO. */
