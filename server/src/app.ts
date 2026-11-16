@@ -19,6 +19,8 @@ export type AppOptions = {
   logger?: boolean;
   /** Teto de conversas novas por hora, somando todos os jogadores (0 = sem teto). Protege o gasto com a LLM. */
   limiteSessoesPorHora?: number;
+  /** Teto de conversas novas por hora para um mesmo jogadorId (0 = sem teto). Evita que uma pessoa gaste o teto da turma. */
+  limiteSessoesPorJogadorHora?: number;
   /** Atrás de proxy reverso (Traefik): confia no X-Forwarded-For para registrar o IP real. */
   trustProxy?: boolean;
 };
@@ -34,6 +36,7 @@ const ComFala = z.object({ id: z.string().uuid(), n: z.coerce.number().int().min
 const ERRO_LLM = "A IA não respondeu agora. Tente de novo em alguns segundos.";
 const ERRO_VOZ = "A voz não carregou. A fala continua escrita na tela.";
 const ERRO_LIMITE = "Muitas conversas começaram na última hora. Tente de novo mais tarde.";
+const ERRO_LIMITE_JOGADOR = "Você começou muitas conversas na última hora. Descanse um pouco e tente de novo mais tarde.";
 const UMA_HORA_MS = 60 * 60 * 1000;
 
 /**
@@ -55,6 +58,8 @@ export function buildApp(opts: AppOptions) {
   const store = new Store();
   const limite = opts.limiteSessoesPorHora ?? 0;
   const inicios: number[] = []; // horários (ms) das sessões criadas na última hora
+  const limiteJogador = opts.limiteSessoesPorJogadorHora ?? 0;
+  const iniciosPorJogador = new Map<string, number[]>();
   // Áudio da abertura de cada cenário: o texto é fixo, então é gerado uma vez para todos.
   const audiosAbertura = new Map<string, Promise<Buffer>>();
   // Uma ou mais origens separadas por vírgula (ex.: painel e mapa em portas diferentes no local).
@@ -69,14 +74,32 @@ export function buildApp(opts: AppOptions) {
     if (!body.success) return reply.code(400).send({ erro: "Dados inválidos" });
     const cenario = CENARIOS[body.data.cenarioId];
     if (!cenario) return reply.code(404).send({ erro: "Cenário não encontrado" });
+    const agora = Date.now();
+    const recentes = (lista: number[]) => {
+      while (lista.length && agora - lista[0]! > UMA_HORA_MS) lista.shift();
+      return lista;
+    };
+    // O jogadorId vem do navegador: segura o abuso pelo jogo, não quem forja pedidos.
+    // Limite por IP não serve: no piloto a turma sai toda pelo mesmo IP.
+    const doJogador = limiteJogador > 0 ? recentes(iniciosPorJogador.get(body.data.jogadorId) ?? []) : [];
+    if (limiteJogador > 0 && doJogador.length >= limiteJogador) {
+      req.log.warn({ limiteJogador }, "teto de sessões por jogador atingido");
+      return reply.code(429).send({ erro: ERRO_LIMITE_JOGADOR });
+    }
     if (limite > 0) {
-      const agora = Date.now();
-      while (inicios.length && agora - inicios[0]! > UMA_HORA_MS) inicios.shift();
-      if (inicios.length >= limite) {
+      if (recentes(inicios).length >= limite) {
         req.log.warn({ limite }, "teto de sessões por hora atingido");
         return reply.code(429).send({ erro: ERRO_LIMITE });
       }
       inicios.push(agora);
+    }
+    if (limiteJogador > 0) {
+      doJogador.push(agora);
+      iniciosPorJogador.set(body.data.jogadorId, doJogador);
+      // Não deixa o mapa crescer sem fim com jogadores que não voltaram.
+      if (iniciosPorJogador.size > 5000) {
+        for (const [id, lista] of iniciosPorJogador) if (!recentes(lista).length) iniciosPorJogador.delete(id);
+      }
     }
     const s = store.criar(body.data.jogadorId, cenario.id, cenario.abertura);
     return reply

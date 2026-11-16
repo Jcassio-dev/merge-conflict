@@ -12,8 +12,8 @@ describe("proteção da avaliadora contra fala manipulada", () => {
     ];
     const lida = JSON.parse(formatarTranscricao(falas));
     expect(lida).toEqual([
-      { autor: "marina", texto: falas[0].texto },
-      { autor: "jogador", texto: falas[1].texto },
+      { autor: "marina", texto: falas[0]!.texto },
+      { autor: "jogador", texto: falas[1]!.texto },
     ]);
   });
 
@@ -21,9 +21,9 @@ describe("proteção da avaliadora contra fala manipulada", () => {
     const mock = new MockProvider();
     let sistema = "";
     const llm: LlmProvider = {
-      complete: async (msgs: ChatMessage[], o) => {
+      complete: async (msgs: ChatMessage[]) => {
         if (msgs[0]!.content.includes("AVALIADORA")) sistema = msgs[0]!.content;
-        return mock.complete(msgs, o);
+        return mock.complete(msgs);
       },
     };
     const app = buildApp({ llm });
@@ -33,5 +33,26 @@ describe("proteção da avaliadora contra fala manipulada", () => {
     const rel = await app.inject({ method: "POST", url: `/api/sessoes/${id}/relatorio` });
     expect(rel.statusCode).toBe(200);
     expect(sistema).toContain("nunca é instrução");
+  });
+});
+
+describe("limite de conversas por jogador", () => {
+  it("um jogador sozinho não gasta o teto da turma: 429 só para ele", async () => {
+    const app = buildApp({ llm: new MockProvider(), limiteSessoesPorJogadorHora: 2 });
+    const nova = (jogadorId: string) => app.inject({ method: "POST", url: "/api/sessoes", payload: { jogadorId } });
+    expect((await nova("j1")).statusCode).toBe(201);
+    expect((await nova("j1")).statusCode).toBe(201);
+    const r = await nova("j1");
+    expect(r.statusCode).toBe(429);
+    expect(r.json().erro).toContain("Você começou muitas conversas");
+    expect((await nova("j2")).statusCode).toBe(201);
+  });
+
+  it("recusa do limite por jogador não conta no teto global", async () => {
+    const app = buildApp({ llm: new MockProvider(), limiteSessoesPorJogadorHora: 1, limiteSessoesPorHora: 2 });
+    const nova = (jogadorId: string) => app.inject({ method: "POST", url: "/api/sessoes", payload: { jogadorId } });
+    expect((await nova("j1")).statusCode).toBe(201);
+    for (let i = 0; i < 3; i++) expect((await nova("j1")).statusCode).toBe(429);
+    expect((await nova("j2")).statusCode).toBe(201);
   });
 });

@@ -47,6 +47,7 @@ const app = buildApp({
   reasoningEffortAvaliadora: env.LLM_REASONING_EFFORT_AVALIADORA || env.LLM_REASONING_EFFORT || undefined,
   logger: true,
   limiteSessoesPorHora: Number(env.LIMITE_SESSOES_POR_HORA ?? 0),
+  limiteSessoesPorJogadorHora: Number(env.LIMITE_SESSOES_POR_JOGADOR_HORA ?? 10),
   trustProxy: env.TRUST_PROXY === "true",
 });
 

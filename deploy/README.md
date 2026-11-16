@@ -165,6 +165,8 @@ Antes do piloto:
 - `LIMITE_SESSOES_POR_HORA` (padrão 300) limita quantas conversas novas começam
   por hora, somando todos os jogadores. Acima disso a API responde “Muitas
   conversas começaram na última hora”.
+- `LIMITE_SESSOES_POR_JOGADOR_HORA` (padrão 10) limita as conversas novas de um
+  mesmo jogador por hora. Não é por IP porque a turma pode sair toda pelo mesmo IP.
 
 ## 8. Teste com 10 pessoas (antes de 24/11)
 
