@@ -5,7 +5,9 @@ import { z } from "zod";
 // Nada é guardado: quem sai some da memória. Sem vídeo e sem chat.
 
 export const MAX_NOME = 20;
-export const CORES = 6;
+/** Quantas opções há em cada parte do boneco (igual a panel/src/jogo/boneco.ts). */
+export const PARTES = { pele: 6, estilo: 4, cabelo: 7, camisa: 8, calca: 4 } as const;
+export type Aparencia = Record<keyof typeof PARTES, number>;
 /** Mensagens de movimento mais próximas que isso são descartadas (≈ 20 por segundo). */
 const INTERVALO_MIN_MS = 45;
 
@@ -14,8 +16,8 @@ const Coord = z.number().finite().min(0).max(4096);
 
 const Entrar = z.object({
   t: z.literal("entrar"),
-  nome: z.unknown(),
-  cor: z.unknown(),
+  nome: z.unknown().optional(),
+  aparencia: z.unknown().optional(),
   x: Coord,
   y: Coord,
   dir: Direcao,
@@ -31,7 +33,7 @@ const Mover = z.object({
 export type Jogador = {
   id: string;
   nome: string;
-  cor: number;
+  aparencia: Aparencia;
   x: number;
   y: number;
   dir: z.infer<typeof Direcao>;
@@ -50,8 +52,15 @@ export function limparNome(bruto: unknown, numero: number): string {
   return limpo || `Visitante ${numero}`;
 }
 
-function limparCor(bruta: unknown): number {
-  return typeof bruta === "number" && Number.isInteger(bruta) && bruta >= 0 && bruta < CORES ? bruta : 0;
+/** Cada parte do boneco vira um número válido; o que vier errado ou faltar vira 0. */
+export function limparAparencia(bruta: unknown): Aparencia {
+  const a = (typeof bruta === "object" && bruta ? bruta : {}) as Record<string, unknown>;
+  const limpa = {} as Aparencia;
+  for (const [parte, total] of Object.entries(PARTES) as [keyof Aparencia, number][]) {
+    const v = a[parte];
+    limpa[parte] = typeof v === "number" && Number.isInteger(v) && v >= 0 && v < total ? v : 0;
+  }
+  return limpa;
 }
 
 type Conexao = { enviar: (msg: object) => void };
@@ -104,7 +113,7 @@ export class Sala {
     const j: Jogador = {
       id: randomUUID(),
       nome: limparNome(m.data.nome, this.contador),
-      cor: limparCor(m.data.cor),
+      aparencia: limparAparencia(m.data.aparencia),
       x: m.data.x,
       y: m.data.y,
       dir: m.data.dir,

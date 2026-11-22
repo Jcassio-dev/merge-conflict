@@ -16,7 +16,7 @@
         <p id="contador">Entrando…</p>
         <div class="acoes">
           <button id="ir-marina" type="button">Ir até a Marina</button>
-          <button id="trocar-apelido" type="button" class="secundario">Trocar apelido</button>
+          <button id="meu-boneco" type="button" class="secundario">Meu boneco</button>
         </div>
       </header>
 
@@ -47,15 +47,23 @@
 
     <dialog id="entrada" aria-labelledby="entrada-titulo">
       <form method="dialog">
-        <h2 id="entrada-titulo">Como você quer aparecer?</h2>
+        <h2 id="entrada-titulo">Monte seu boneco</h2>
         <p>Os outros jogadores veem seu apelido e seu boneco. Nada disso é guardado no servidor.</p>
-        <label class="campo">Apelido
-          <input name="apelido" maxlength="20" autocomplete="nickname" placeholder="Visitante">
-        </label>
-        <fieldset>
-          <legend>Boneco</legend>
-          <div class="cores"></div>
-        </fieldset>
+        <div class="montagem">
+          <div class="vitrine">
+            <canvas id="previa" width="128" height="128" role="img" aria-label="Prévia do seu boneco"></canvas>
+            <button id="sortear" type="button" class="secundario">Sortear</button>
+          </div>
+          <div class="partes">
+            <label class="campo">Apelido
+              <input name="apelido" maxlength="20" autocomplete="nickname" placeholder="Visitante">
+            </label>
+            <fieldset><legend>Pele</legend><div class="amostras" data-parte="pele"></div></fieldset>
+            <fieldset><legend>Cabelo</legend><div class="opcoes" data-parte="estilo"></div><div class="amostras" data-parte="cabelo"></div></fieldset>
+            <fieldset><legend>Camisa</legend><div class="amostras" data-parte="camisa"></div></fieldset>
+            <fieldset><legend>Calça</legend><div class="amostras" data-parte="calca"></div></fieldset>
+          </div>
+        </div>
         <button class="primario" type="submit">Entrar no escritório</button>
       </form>
     </dialog>

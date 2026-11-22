@@ -69,18 +69,33 @@ body.jogo { display: flex; min-height: 0; }
 }
 #entrada input[name=apelido]::placeholder { color: var(--tinta-suave); }
 #entrada input:focus-visible { outline: 3px solid var(--madeira-escura); outline-offset: 2px; }
-#entrada fieldset { border: 0; padding: 0; margin: 0 0 16px; }
-#entrada legend { font-weight: 700; margin-bottom: 6px; }
-.cores { display: flex; flex-wrap: wrap; gap: 8px; }
-.cor { position: relative; cursor: pointer; }
-.cor input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
-.cor .boneco {
-  display: block; width: 58px; height: 58px; padding: 3px; border-radius: var(--raio);
-  border: 3px solid var(--madeira-clara); background-color: var(--papel-claro);
-  background-image: url("/mapa/jogadores.png"); background-repeat: no-repeat;
-  background-origin: content-box; background-clip: content-box;
-  background-size: 138px 1104px; background-position: 0 calc(var(--linha) * -46px);
-  image-rendering: pixelated;
+#entrada { max-width: 600px; max-height: calc(100vh - 32px); overflow-y: auto; }
+#entrada fieldset { border: 0; padding: 0; margin: 0 0 12px; }
+#entrada legend { font-weight: 700; margin-bottom: 4px; }
+.montagem { display: flex; gap: 20px; align-items: flex-start; margin-bottom: 8px; }
+.vitrine { flex: none; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+#previa {
+  width: 128px; height: 128px; image-rendering: pixelated;
+  background: var(--papel-claro); border: 3px solid var(--madeira-clara); border-radius: var(--raio);
 }
-.cor input:checked + .boneco { border-color: var(--folha); box-shadow: 0 0 0 3px var(--folha); }
-.cor input:focus-visible + .boneco { outline: 3px solid var(--madeira-escura); outline-offset: 3px; }
+.vitrine button { min-height: 36px; padding: 4px 12px; font-size: 0.9rem; }
+.partes { flex: 1; min-width: 0; }
+.amostras, .opcoes { display: flex; flex-wrap: wrap; gap: 6px; }
+.opcoes { margin-bottom: 6px; }
+.amostra, .opcao { position: relative; cursor: pointer; }
+.amostra input, .opcao input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.amostra span[aria-hidden] {
+  display: block; width: 30px; height: 30px; border-radius: var(--raio);
+  border: 3px solid var(--madeira-clara);
+}
+.opcao span {
+  display: block; padding: 2px 10px; font-size: 0.9rem; border-radius: var(--raio);
+  background: var(--papel-claro); border: 3px solid var(--madeira-clara);
+}
+.amostra input:checked + span, .opcao input:checked + span { border-color: var(--folha-escura); box-shadow: 0 0 0 2px var(--folha); }
+.opcao input:checked + span { background: var(--folha-clara); font-weight: 700; }
+.amostra input:focus-visible + span, .opcao input:focus-visible + span { outline: 3px solid var(--madeira-escura); outline-offset: 2px; }
+@media (max-width: 520px) {
+  .montagem { flex-direction: column; align-items: stretch; }
+  .vitrine { flex-direction: row; justify-content: center; }
+}

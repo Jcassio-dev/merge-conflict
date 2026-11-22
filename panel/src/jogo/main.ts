@@ -2,7 +2,11 @@ import "../style.css";
 import "./jogo.css";
 import { retratoMarina } from "../retrato";
 import { caminho, type Tile } from "./caminho";
-import { CAMADA_BALAO, Mapa, carregarImagem } from "./mapa";
+import {
+  CABELOS, CALCAS, CAMISAS, DIRECOES, ESTILOS, NOMES, PELES,
+  aparenciaAleatoria, aparenciaValida, corCss, folhaDoBoneco, type Aparencia,
+} from "./boneco";
+import { CAMADA_BALAO, Mapa } from "./mapa";
 import { Rede, urlSala, type Direcao, type Outro } from "./rede";
 
 // O escritório: mapa do Tiled, movimento, outros jogadores (só posição e apelido)
@@ -14,8 +18,6 @@ const CENARIO = "cenario-1";
 const ZONA_MARINA = "marina";
 const SALA = "sala-projeto";
 const VELOCIDADE = 140; // pixels do mapa por segundo
-const DIRECOES: Direcao[] = ["baixo", "esquerda", "direita", "cima"];
-const CORES = 6;
 const TECLAS: Record<string, [number, number]> = {
   ArrowUp: [0, -1], KeyW: [0, -1],
   ArrowDown: [0, 1], KeyS: [0, 1],
@@ -51,9 +53,9 @@ const painel = $<HTMLDialogElement>("#painel");
 const entrada = $<HTMLDialogElement>("#entrada");
 
 // ---------- estado ----------
-type Boneco = { nome: string; cor: number; x: number; y: number; dir: Direcao; andando: boolean; passo: number };
+type Boneco = { nome: string; aparencia: Aparencia; x: number; y: number; dir: Direcao; andando: boolean; passo: number };
 const jogadorId = idJogador();
-const eu: Boneco = { nome: "", cor: 0, x: 0, y: 0, dir: "baixo", andando: false, passo: 0 };
+const eu: Boneco = { nome: "", aparencia: aparenciaValida(undefined), x: 0, y: 0, dir: "baixo", andando: false, passo: 0 };
 const outros = new Map<string, Boneco & { alvoX: number; alvoY: number }>();
 const teclas = new Set<string>();
 let rota: Tile[] = [];
@@ -62,7 +64,6 @@ let painelAberto = false;
 let boasVindasFechado = false;
 let concluiu = false;
 let mapa: Mapa;
-let sprites: HTMLImageElement;
 let camera = { x: 0, y: 0, zoom: 1, dpr: 1 };
 
 // ---------- início ----------
@@ -70,10 +71,7 @@ void iniciar();
 
 async function iniciar(): Promise<void> {
   try {
-    [mapa, sprites] = await Promise.all([
-      Mapa.carregar(`${BASE}mapa/escritorio.tmj`),
-      carregarImagem(`${BASE}mapa/jogadores.png`),
-    ]);
+    mapa = await Mapa.carregar(`${BASE}mapa/escritorio.tmj`);
   } catch (e) {
     console.error(e);
     aviso.textContent = "O escritório não carregou. Recarregue a página.";
@@ -89,16 +87,25 @@ async function iniciar(): Promise<void> {
   if (concluiu) mapa.ocultarCamada(CAMADA_BALAO);
 
   const apelido = ler("cd-apelido");
-  if (apelido) entrar(apelido, Number(ler("cd-cor")) || 0);
+  if (apelido) entrar(apelido, aparenciaSalva() ?? aparenciaAleatoria());
   else abrirEntrada();
 }
 
-function entrar(nome: string, cor: number): void {
+function aparenciaSalva(): Aparencia | undefined {
+  try {
+    const bruta = ler("cd-aparencia");
+    return bruta ? aparenciaValida(JSON.parse(bruta)) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function entrar(nome: string, aparencia: Aparencia): void {
   eu.nome = nome;
-  eu.cor = Math.min(Math.max(0, Math.trunc(cor)), CORES - 1);
+  eu.aparencia = aparencia;
   const primeiraVez = !rede;
   if (primeiraVez) {
-    rede = new Rede(urlSala(API), () => ({ nome: eu.nome, cor: eu.cor, x: eu.x, y: eu.y, dir: eu.dir }), {
+    rede = new Rede(urlSala(API), () => ({ nome: eu.nome, aparencia: eu.aparencia, x: eu.x, y: eu.y, dir: eu.dir }), {
       bemvindo: (_id, lista) => {
         outros.clear();
         lista.forEach(adicionarOutro);
@@ -125,7 +132,7 @@ function entrar(nome: string, cor: number): void {
     rede.conectar();
     if (!concluiu) mostrarBoasVindas();
   } else {
-    // Trocou o apelido ou a cor: reconecta para os outros verem.
+    // Mudou o apelido ou o boneco: reconecta para os outros verem.
     rede?.reiniciar();
   }
   tela.focus();
@@ -141,47 +148,96 @@ function atualizarContador(): void {
   contador.textContent = n === 1 ? "Só você no escritório" : `${n} pessoas no escritório`;
 }
 
-// ---------- apelido ----------
+// ---------- apelido e boneco ----------
+const formEntrada = entrada.querySelector("form")!;
+const previa = entrada.querySelector<HTMLCanvasElement>("#previa")!;
+let previaTimer: ReturnType<typeof setInterval> | undefined;
+
+function aparenciaDoForm(): Aparencia {
+  const d = new FormData(formEntrada);
+  return aparenciaValida(Object.fromEntries(["pele", "estilo", "cabelo", "camisa", "calca"].map((k) => [k, Number(d.get(k))])));
+}
+
+function marcar(a: Aparencia): void {
+  for (const [k, v] of Object.entries(a)) {
+    formEntrada.querySelector<HTMLInputElement>(`input[name=${k}][value="${v}"]`)!.checked = true;
+  }
+}
+
+/** Prévia ampliada que gira pelas 4 direções andando. */
+function animarPrevia(): void {
+  const c = previa.getContext("2d")!;
+  let passo = 0;
+  clearInterval(previaTimer);
+  const desenhar = () => {
+    const folha = folhaDoBoneco(aparenciaDoForm());
+    const d = Math.floor(passo / 8) % 4;
+    const q = [1, 0, 2, 0][passo % 4]!;
+    c.imageSmoothingEnabled = false;
+    c.clearRect(0, 0, previa.width, previa.height);
+    c.drawImage(folha, q * 32, d * 32, 32, 32, 0, 0, previa.width, previa.height);
+    passo++;
+  };
+  desenhar();
+  previaTimer = setInterval(desenhar, 160);
+}
+
 function abrirEntrada(): void {
-  const form = entrada.querySelector("form")!;
-  const campo = form.querySelector<HTMLInputElement>("input[name=apelido]")!;
+  const campo = formEntrada.querySelector<HTMLInputElement>("input[name=apelido]")!;
   campo.value = eu.nome || ler("cd-apelido");
-  const cor = eu.nome ? eu.cor : Number(ler("cd-cor")) || Math.floor(Math.random() * CORES);
-  form.querySelector<HTMLInputElement>(`input[name=cor][value="${cor}"]`)!.checked = true;
+  marcar(eu.nome ? eu.aparencia : (aparenciaSalva() ?? aparenciaAleatoria()));
   entrada.showModal();
+  animarPrevia();
   campo.focus();
 }
 
 function montarEntrada(): void {
-  const cores = entrada.querySelector(".cores")!;
-  for (let c = 0; c < CORES; c++) {
+  const amostras = (nome: keyof typeof NOMES, cores: readonly (readonly [number, number, number])[]) => {
+    const grupo = formEntrada.querySelector(`[data-parte=${nome}]`)!;
+    cores.forEach((cor, i) => {
+      const rotulo = document.createElement("label");
+      rotulo.className = "amostra";
+      rotulo.title = NOMES[nome][i]!;
+      rotulo.innerHTML = `<input type="radio" name="${nome}" value="${i}"><span style="background:${corCss(cor)}" aria-hidden="true"></span><span class="sr">${NOMES[nome][i]}</span>`;
+      grupo.append(rotulo);
+    });
+  };
+  amostras("pele", PELES);
+  amostras("cabelo", CABELOS);
+  amostras("camisa", CAMISAS);
+  amostras("calca", CALCAS);
+  const estilos = formEntrada.querySelector("[data-parte=estilo]")!;
+  ESTILOS.forEach((nome, i) => {
     const rotulo = document.createElement("label");
-    rotulo.className = "cor";
-    rotulo.innerHTML = `<input type="radio" name="cor" value="${c}"><span class="boneco" style="--linha:${c * 4}" aria-hidden="true"></span><span class="sr">Boneco ${c + 1}</span>`;
-    cores.append(rotulo);
-  }
-  entrada.querySelector("form")!.addEventListener("submit", (e) => {
+    rotulo.className = "opcao";
+    rotulo.innerHTML = `<input type="radio" name="estilo" value="${i}"><span>${nome}</span>`;
+    estilos.append(rotulo);
+  });
+
+  formEntrada.querySelector("#sortear")!.addEventListener("click", () => marcar(aparenciaAleatoria()));
+  formEntrada.addEventListener("submit", (e) => {
     e.preventDefault();
-    const dados = new FormData(e.target as HTMLFormElement);
+    const dados = new FormData(formEntrada);
     const nome = String(dados.get("apelido") ?? "").replace(/\s+/g, " ").trim().slice(0, 20);
-    const cor = Number(dados.get("cor") ?? 0);
+    const aparencia = aparenciaDoForm();
     // Sem apelido: "Visitante 42", para não ficar todo mundo com o mesmo nome.
     const final = nome || `Visitante ${10 + Math.floor(Math.random() * 90)}`;
     salvar("cd-apelido", final);
-    salvar("cd-cor", String(cor));
+    salvar("cd-aparencia", JSON.stringify(aparencia));
     entrada.close();
-    entrar(final, cor);
+    entrar(final, aparencia);
   });
-  // Fechar com Esc sem escolher: entra como visitante.
+  entrada.addEventListener("close", () => clearInterval(previaTimer));
+  // Fechar com Esc: na primeira vez entra assim mesmo; depois, só desiste da mudança.
   entrada.addEventListener("cancel", (e) => {
     if (!eu.nome) {
       e.preventDefault();
-      entrada.querySelector("form")!.requestSubmit();
+      formEntrada.requestSubmit();
     }
   });
 }
 montarEntrada();
-$("#trocar-apelido").addEventListener("click", abrirEntrada);
+$("#meu-boneco").addEventListener("click", abrirEntrada);
 
 // ---------- progresso ----------
 async function concluiuCenario(): Promise<boolean> {
@@ -390,8 +446,8 @@ function desenharBoneco(b: Boneco): void {
   const t = 32;
   // Ciclo do passo: esquerdo, parado, direito, parado.
   const quadro = b.andando ? [1, 0, 2, 0][Math.floor(b.passo / 0.14) % 4]! : 0;
-  const linha = b.cor * 4 + DIRECOES.indexOf(b.dir);
-  ctx.drawImage(sprites, quadro * t, linha * t, t, t, Math.round(b.x - 16), Math.round(b.y - 30), t, t);
+  const linha = DIRECOES.indexOf(b.dir);
+  ctx.drawImage(folhaDoBoneco(b.aparencia), quadro * t, linha * t, t, t, Math.round(b.x - 16), Math.round(b.y - 30), t, t);
 }
 
 function desenharNome(b: Boneco, destaque: boolean): void {

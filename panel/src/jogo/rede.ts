@@ -1,9 +1,11 @@
 // Conexão com a sala multiplayer do server/ (WebSocket /api/sala).
 // Se cair, tenta de novo sozinha; o jogo continua funcionando sem os outros jogadores.
 
+import type { Aparencia } from "./boneco";
+
 export type Direcao = "baixo" | "esquerda" | "direita" | "cima";
-export type Outro = { id: string; nome: string; cor: number; x: number; y: number; dir: Direcao; andando: boolean };
-export type Eu = { nome: string; cor: number; x: number; y: number; dir: Direcao };
+export type Outro = { id: string; nome: string; aparencia: Aparencia; x: number; y: number; dir: Direcao; andando: boolean };
+export type Eu = { nome: string; aparencia: Aparencia; x: number; y: number; dir: Direcao };
 
 type Eventos = {
   bemvindo: (id: string, outros: Outro[]) => void;

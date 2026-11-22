@@ -40,19 +40,21 @@ describe("sala multiplayer", () => {
 
     const a = await app.injectWS("/api/sala");
     const ouveA = ouvir(a);
-    enviar(a, { t: "entrar", nome: "Ana", cor: 2, x: 64, y: 544, dir: "baixo" });
+    enviar(a, { t: "entrar", nome: "Ana", aparencia: { pele: 2, estilo: 1, cabelo: 3, camisa: 7, calca: 1 }, x: 64, y: 544, dir: "baixo" });
     const bemA = await ouveA.proxima("bemvindo");
     expect(bemA.outros).toEqual([]);
 
     const b = await app.injectWS("/api/sala");
     const ouveB = ouvir(b);
-    enviar(b, { t: "entrar", nome: "Bruno", cor: 9, x: 100, y: 500, dir: "cima" });
+    enviar(b, { t: "entrar", nome: "Bruno", aparencia: { pele: 99, estilo: -1, cabelo: 1.5, camisa: "x" }, x: 100, y: 500, dir: "cima" });
     const bemB = await ouveB.proxima("bemvindo");
-    expect(bemB.outros).toEqual([expect.objectContaining({ id: bemA.id, nome: "Ana", cor: 2, x: 64, y: 544 })]);
+    expect(bemB.outros).toEqual([
+      expect.objectContaining({ id: bemA.id, nome: "Ana", aparencia: { pele: 2, estilo: 1, cabelo: 3, camisa: 7, calca: 1 }, x: 64, y: 544 }),
+    ]);
 
     const entrou = await ouveA.proxima("entrou");
-    // cor fora da faixa vira 0
-    expect(entrou.jogador).toMatchObject({ id: bemB.id, nome: "Bruno", cor: 0 });
+    // partes fora da faixa (ou que faltam) viram 0
+    expect(entrou.jogador).toMatchObject({ id: bemB.id, nome: "Bruno", aparencia: { pele: 0, estilo: 0, cabelo: 0, camisa: 0, calca: 0 } });
 
     enviar(b, { t: "mover", x: 120, y: 510, dir: "direita", andando: true });
     const moveu = await ouveA.proxima("moveu");
@@ -69,13 +71,13 @@ describe("sala multiplayer", () => {
     await app.ready();
     const a = await app.injectWS("/api/sala");
     const ouveA = ouvir(a);
-    enviar(a, { t: "entrar", nome: "Ana", cor: 1, x: 10, y: 10, dir: "baixo" });
+    enviar(a, { t: "entrar", nome: "Ana", x: 10, y: 10, dir: "baixo" });
     await ouveA.proxima("bemvindo");
 
     const b = await app.injectWS("/api/sala");
     b.send("isso não é json");
     enviar(b, { t: "mover", x: 1, y: 1, dir: "baixo" });
-    enviar(b, { t: "entrar", nome: "B", cor: 1, x: "longe", y: 1, dir: "baixo" });
+    enviar(b, { t: "entrar", nome: "B", x: "longe", y: 1, dir: "baixo" });
     await new Promise((r) => setTimeout(r, 50));
     expect(ouveA.caixa).toEqual([]);
     a.terminate();
