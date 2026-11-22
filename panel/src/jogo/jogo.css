@@ -43,18 +43,20 @@ body.jogo { display: flex; min-height: 0; }
   .cartao-marina .dica, .ajuda { display: none; }
 }
 
+/* Conversa com a Marina: modal no centro, com o escritório escurecido atrás. */
 #painel {
-  flex: none; width: min(480px, 45vw); height: 100%; display: flex; flex-direction: column;
-  background: var(--mesa); border-left: 4px solid var(--madeira);
+  width: min(760px, calc(100% - 32px)); max-width: none; height: min(90vh, 900px); max-height: none;
+  padding: 0; display: none; flex-direction: column; overflow: hidden; background: var(--mesa);
 }
-#painel[hidden] { display: none; }
-.painel-topo { padding: 8px 12px; border-bottom: 3px solid var(--madeira-clara); }
+#painel[open] { display: flex; }
+#painel::backdrop { background: rgba(43, 34, 51, 0.6); }
+.painel-topo { display: flex; justify-content: flex-end; padding: 8px 12px; border-bottom: 3px solid var(--madeira-clara); }
 .painel-topo button { min-height: 36px; padding: 4px 10px; font-size: 0.9rem; }
 #painel iframe { flex: 1; width: 100%; border: 0; background: var(--mesa); }
 
-/* Celular: o painel cobre o mapa; "Voltar ao escritório" fecha. */
+/* Celular: a conversa ocupa a tela toda. */
 @media (max-width: 720px) {
-  #painel { position: fixed; inset: 0; width: 100%; border-left: 0; z-index: 10; }
+  #painel { width: 100%; height: 100%; margin: 0; border: 0; border-radius: 0; }
   .barra-jogo h1 { display: none; }
 }
 

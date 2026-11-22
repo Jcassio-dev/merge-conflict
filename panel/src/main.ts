@@ -357,3 +357,12 @@ function ligarEventos(): void {
 }
 
 render();
+
+// Aberto dentro do escritório (modal do jogo): Esc pede para fechar a conversa,
+// a menos que a ficha esteja aberta (aí o Esc fecha só a ficha).
+if (window.parent !== window) {
+  window.addEventListener("keydown", (ev) => {
+    if (ev.key !== "Escape" || document.querySelector("dialog[open]")) return;
+    window.parent.postMessage({ tipo: "fechar-conversa" }, location.origin);
+  });
+}

@@ -47,7 +47,7 @@ const aviso = $<HTMLElement>("#aviso");
 const contador = $<HTMLElement>("#contador");
 const cartaoBoasVindas = $<HTMLElement>("#boas-vindas");
 const cartaoMarina = $<HTMLElement>("#cartao-marina");
-const painel = $<HTMLElement>("#painel");
+const painel = $<HTMLDialogElement>("#painel");
 const entrada = $<HTMLDialogElement>("#entrada");
 
 // ---------- estado ----------
@@ -233,17 +233,15 @@ function abrirPainel(): void {
   url.searchParams.set("jogador", jogadorId);
   const quadro = painel.querySelector("iframe")!;
   quadro.src = url.href;
-  painel.hidden = false;
-  document.body.classList.add("com-painel");
+  painel.showModal();
   quadro.focus();
 }
 
 async function fecharPainel(): Promise<void> {
   if (!painelAberto) return;
   painelAberto = false;
-  painel.hidden = true;
+  if (painel.open) painel.close();
   painel.querySelector("iframe")!.src = "about:blank";
-  document.body.classList.remove("com-painel");
   tela.focus();
   // Pode ter concluído agora: o balão "…" some e o botão vira "Conversar de novo".
   if (!concluiu && (await concluiuCenario())) {
@@ -253,6 +251,12 @@ async function fecharPainel(): Promise<void> {
   if (areasAtuais.has(ZONA_MARINA)) mostrarConvite();
 }
 $("#fechar-painel").addEventListener("click", () => void fecharPainel());
+// Esc fecha o modal pelo navegador; aqui o jogo arruma o resto.
+painel.addEventListener("close", () => void fecharPainel());
+// Esc apertado dentro da conversa (iframe do mesmo site).
+window.addEventListener("message", (e) => {
+  if (e.origin === location.origin && (e.data as { tipo?: string } | null)?.tipo === "fechar-conversa") void fecharPainel();
+});
 
 $("#ir-marina").addEventListener("click", () => {
   const zona = mapa?.areas.find((a) => a.nome === ZONA_MARINA);
@@ -263,7 +267,7 @@ $("#ir-marina").addEventListener("click", () => {
 
 // ---------- entrada do jogador ----------
 window.addEventListener("keydown", (e) => {
-  if (entrada.open || e.target instanceof HTMLInputElement || e.target instanceof HTMLButtonElement) return;
+  if (entrada.open || painel.open || e.target instanceof HTMLInputElement || e.target instanceof HTMLButtonElement) return;
   if (e.code in TECLAS) {
     teclas.add(e.code);
     rota = [];
@@ -411,7 +415,7 @@ let anterior = performance.now();
 function quadro(agora: number): void {
   const dt = Math.min((agora - anterior) / 1000, 0.1);
   anterior = agora;
-  if (eu.nome && !entrada.open) mover(dt);
+  if (eu.nome && !entrada.open && !painel.open) mover(dt);
 
   // Os outros deslizam até a última posição recebida.
   for (const o of outros.values()) {
