@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { lerPrompt } from "./scenarios.js";
+import { contextoAvaliacao, lerPrompt, type Cenario } from "./scenarios.js";
 import type { Fala } from "./sessions.js";
 import { LlmError, type CompleteOptions, type LlmProvider } from "./llm/types.js";
 
@@ -31,7 +31,7 @@ export type Relatorio = z.infer<typeof RelatorioSchema>;
  */
 export function formatarTranscricao(falas: Fala[]): string {
   return JSON.stringify(
-    falas.map((f) => ({ autor: f.autor === "jogador" ? "jogador" : "marina", texto: f.texto })),
+    falas.map((f) => ({ autor: f.autor === "jogador" ? "jogador" : "personagem", texto: f.texto })),
     null,
     1,
   );
@@ -61,10 +61,13 @@ const TENTATIVAS = 3;
 export async function gerarRelatorio(
   llm: LlmProvider,
   falas: Fala[],
-  opcoes: Pick<CompleteOptions, "model" | "reasoningEffort"> = {},
+  opcoes: Pick<CompleteOptions, "model" | "reasoningEffort"> & { cenario?: Cenario } = {},
 ): Promise<Relatorio> {
+  const { cenario, ...llmOpcoes } = opcoes;
+  const partes = [lerPrompt("avaliadora.md"), lerPrompt("rubrica.md")];
+  if (cenario) partes.push(contextoAvaliacao(cenario));
   const mensagens = [
-    { role: "system" as const, content: `${lerPrompt("avaliadora.md")}\n\n${lerPrompt("rubrica.md")}` },
+    { role: "system" as const, content: partes.join("\n\n") },
     { role: "user" as const, content: `Transcrição (JSON):\n${formatarTranscricao(falas)}` },
   ];
   // Até 3 tentativas: a chamada pode falhar (tempo esgotado, resposta cortada, provedor
@@ -74,7 +77,7 @@ export async function gerarRelatorio(
   for (let tentativa = 1; tentativa <= TENTATIVAS; tentativa++) {
     let bruto: string;
     try {
-      bruto = await llm.complete(mensagens, { ...opcoes, json: true, maxTokens: 4096 });
+      bruto = await llm.complete(mensagens, { ...llmOpcoes, json: true, maxTokens: 4096 });
     } catch (err) {
       motivo = err instanceof LlmError ? err.message : "falha na chamada";
       continue;

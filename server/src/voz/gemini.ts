@@ -25,7 +25,7 @@ export class GeminiTtsProvider implements VozProvider {
     }
   }
 
-  async sintetizar(texto: string): Promise<Buffer> {
+  async sintetizar(texto: string, voz?: string): Promise<Buffer> {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), this.cfg.timeoutMs);
     // Só o texto da fala: instruções de tom junto com o texto acabam sendo lidas em voz alta.
@@ -33,7 +33,7 @@ export class GeminiTtsProvider implements VozProvider {
       contents: [{ parts: [{ text: texto }] }],
       generationConfig: {
         responseModalities: ["AUDIO"],
-        speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: this.cfg.voz } } },
+        speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voz || this.cfg.voz } } },
       },
     };
     const url = `${(this.cfg.baseUrl ?? BASE_PADRAO).replace(/\/$/, "")}/models/${this.cfg.model}:generateContent`;

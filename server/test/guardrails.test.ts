@@ -12,7 +12,7 @@ describe("proteção da avaliadora contra fala manipulada", () => {
     ];
     const lida = JSON.parse(formatarTranscricao(falas));
     expect(lida).toEqual([
-      { autor: "marina", texto: falas[0]!.texto },
+      { autor: "personagem", texto: falas[0]!.texto },
       { autor: "jogador", texto: falas[1]!.texto },
     ]);
   });

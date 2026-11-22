@@ -2,7 +2,7 @@ import Fastify from "fastify";
 import cors from "@fastify/cors";
 import websocket from "@fastify/websocket";
 import { z } from "zod";
-import { CENARIOS, MARCA_FIM, lerPrompt } from "./scenarios.js";
+import { CENARIOS, MARCA_FIM, cenarioPublico, lerPrompt } from "./scenarios.js";
 import { Store } from "./sessions.js";
 import { gerarRelatorio } from "./report.js";
 import { Sala } from "./sala.js";
@@ -49,10 +49,16 @@ const UMA_HORA_MS = 60 * 60 * 1000;
  * Gera o áudio uma vez por chave e reaproveita. Se a geração falhar, tira do cache
  * para o próximo pedido tentar de novo.
  */
-function audioEmCache<K>(cache: Map<K, Promise<Buffer>>, chave: K, texto: string, voz: VozProvider): Promise<Buffer> {
+function audioEmCache<K>(
+  cache: Map<K, Promise<Buffer>>,
+  chave: K,
+  texto: string,
+  voz: VozProvider,
+  nomeVoz?: string,
+): Promise<Buffer> {
   let audio = cache.get(chave);
   if (!audio) {
-    audio = voz.sintetizar(texto);
+    audio = voz.sintetizar(texto, nomeVoz);
     cache.set(chave, audio);
     audio.catch(() => cache.delete(chave));
   }
@@ -75,6 +81,11 @@ export function buildApp(opts: AppOptions) {
   app.register(cors, { origin: origens.length ? origens : true });
 
   app.get("/health", async () => ({ ok: true }));
+
+  // Cenários do piloto, em ordem (só o que o painel mostra; os prompts ficam aqui).
+  app.get("/api/cenarios", async () => ({
+    cenarios: Object.values(CENARIOS).sort((a, b) => a.ordem - b.ordem).map(cenarioPublico),
+  }));
 
   // Sala multiplayer do escritório (WebSocket): posição e apelido de quem está jogando.
   const sala = new Sala(opts.limiteSala ?? 50);
@@ -184,10 +195,11 @@ export function buildApp(opts: AppOptions) {
     if (!s || fala?.autor !== "personagem") return reply.code(404).send({ erro: "Fala não encontrada" });
 
     // A fala 0 é a abertura fixa do cenário (um áudio para todos); as outras são desta sessão.
+    const nomeVoz = CENARIOS[s.cenarioId]?.personagem.voz;
     const audio =
       params.data.n === 0
-        ? audioEmCache(audiosAbertura, s.cenarioId, fala.texto, opts.voz)
-        : audioEmCache((s.audios ??= new Map()), params.data.n, fala.texto, opts.voz);
+        ? audioEmCache(audiosAbertura, s.cenarioId, fala.texto, opts.voz, nomeVoz)
+        : audioEmCache((s.audios ??= new Map()), params.data.n, fala.texto, opts.voz, nomeVoz);
     try {
       const wav = await audio;
       return reply.header("content-type", "audio/wav").header("cache-control", "private, max-age=3600").send(wav);
@@ -209,6 +221,7 @@ export function buildApp(opts: AppOptions) {
     if (!s.relatorio) {
       try {
         s.relatorio = await gerarRelatorio(opts.llm, s.falas, {
+          cenario: CENARIOS[s.cenarioId],
           model: opts.modeloAvaliadora,
           reasoningEffort: opts.reasoningEffortAvaliadora,
         });
