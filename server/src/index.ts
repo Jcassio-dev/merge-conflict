@@ -51,6 +51,7 @@ const app = buildApp({
   trustProxy: env.TRUST_PROXY === "true",
   limiteSala: Number(env.LIMITE_SALA ?? 50),
   arquivoProgresso: env.PROGRESSO_ARQUIVO || undefined,
+  votosAvaliadora: Number(env.VOTOS_AVALIADORA ?? 3),
 });
 
 // docker stop manda SIGTERM: fecha a API com calma para gravar o progresso pendente.

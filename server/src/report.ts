@@ -94,3 +94,49 @@ export async function gerarRelatorio(
   }
   throw new LlmError(`A avaliadora não devolveu um relatório válido em ${TENTATIVAS} tentativas (${motivo})`);
 }
+
+const ORDEM_NIVEIS = ["a_melhorar", "adequado", "bom"] as const;
+
+/**
+ * Várias avaliações independentes, em paralelo, e o nível da maioria em cada critério
+ * (Wang et al., 2023; Verga et al., 2024: juntar avaliações reduz o viés de um juiz só).
+ * Se todas discordam num critério, fica o nível do meio e o critério volta em `divergentes`,
+ * para revisão humana. Basta uma avaliação dar certo; se nenhuma der, o erro sobe.
+ */
+export async function gerarRelatorioVotado(
+  llm: LlmProvider,
+  falas: Fala[],
+  votos: number,
+  opcoes: Parameters<typeof gerarRelatorio>[2] = {},
+): Promise<{ relatorio: Relatorio; divergentes: string[] }> {
+  const tentativas = await Promise.allSettled(Array.from({ length: Math.max(1, votos) }, () => gerarRelatorio(llm, falas, opcoes)));
+  const relatorios = tentativas.flatMap((t) => (t.status === "fulfilled" ? [t.value] : []));
+  if (!relatorios.length) throw (tentativas[0] as PromiseRejectedResult).reason;
+  if (relatorios.length === 1) return { relatorio: relatorios[0]!, divergentes: [] };
+
+  const divergentes: string[] = [];
+  const criterios = relatorios[0]!.criterios.map((base) => {
+    const votosDoCriterio = relatorios.map((r) => r.criterios.find((c) => c.nome === base.nome) ?? base);
+    const contagem = new Map<string, number>();
+    for (const c of votosDoCriterio) contagem.set(c.nivel, (contagem.get(c.nivel) ?? 0) + 1);
+    const [maisVotado, quantos] = [...contagem].sort((a, b) => b[1] - a[1])[0]!;
+    let nivel = maisVotado;
+    if (quantos === 1 && votosDoCriterio.length > 2) {
+      // Empate total: o nível do meio entre os votos, e alguém revisa depois.
+      const ordenados = votosDoCriterio.map((c) => ORDEM_NIVEIS.indexOf(c.nivel)).sort((a, b) => a - b);
+      nivel = ORDEM_NIVEIS[ordenados[Math.floor(ordenados.length / 2)]!]!;
+      divergentes.push(base.nome);
+    }
+    // Evidência e motivo de quem votou no nível escolhido, para o texto bater com o nível.
+    return votosDoCriterio.find((c) => c.nivel === nivel)!;
+  });
+
+  const resultados = new Map<string, number>();
+  for (const r of relatorios) resultados.set(r.resultado, (resultados.get(r.resultado) ?? 0) + 1);
+  const resultado = [...resultados].sort((a, b) => b[1] - a[1])[0]![0] as Relatorio["resultado"];
+  // Ponto forte e sugestão vêm da avaliação que mais concorda com o resultado final.
+  const concordancia = (r: Relatorio) =>
+    r.criterios.filter((c, i) => c.nivel === criterios[i]!.nivel).length + (r.resultado === resultado ? 1 : 0);
+  const melhor = [...relatorios].sort((a, b) => concordancia(b) - concordancia(a))[0]!;
+  return { relatorio: { ...melhor, criterios, resultado }, divergentes };
+}

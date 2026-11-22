@@ -201,6 +201,7 @@ function telaRelatorio(): string {
       (Fisher e Ury, 1981) e nos modos de lidar com conflito (Thomas e Kilmann, 1974).</p>`;
   return `${barra("Relatório da conversa", 7)}
   <section class="relatorio">
+    <p class="discreto meta-relatorio"><strong>Sua meta era:</strong> ${esc(cenario.meta.charAt(0).toLowerCase() + cenario.meta.slice(1))}</p>
     <p class="resultado">${RESULTADOS[r.resultado]}</p>
     <div role="tablist" class="abas">
       <button role="tab" aria-selected="${estado.aba === "resumo"}" data-aba="resumo">Resumo</button>

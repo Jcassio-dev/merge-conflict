@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { gerarRelatorio } from "../src/report.js";
+import { gerarRelatorio, gerarRelatorioVotado } from "../src/report.js";
 import { LlmError, type LlmProvider } from "../src/llm/types.js";
 import type { Fala } from "../src/sessions.js";
 
@@ -63,5 +63,45 @@ describe("gerarRelatorio", () => {
     expect((erro as Error).message).toMatch(/citação/);
     expect((erro as Error).message).not.toContain("nunca disse");
     expect(llm.chamadas).toBe(3);
+  });
+});
+
+describe("avaliação por votação (3 avaliadoras)", () => {
+  const com = (niveis: string[], resultado = "acordo") =>
+    JSON.stringify({
+      ...JSON.parse(valido),
+      criterios: JSON.parse(valido).criterios.map((c: { nome: string }, i: number) => ({ ...c, nivel: niveis[i], motivo: `motivo ${niveis[i]}` })),
+      resultado,
+    });
+
+  it("fica o nível da maioria em cada critério, com o motivo de quem votou nele", async () => {
+    const llm = roteiro([
+      com(["bom", "adequado", "bom", "a_melhorar"]),
+      com(["bom", "bom", "adequado", "a_melhorar"], "sem_acordo"),
+      com(["adequado", "bom", "bom", "a_melhorar"]),
+    ]);
+    const { relatorio, divergentes } = await gerarRelatorioVotado(llm, falas, 3);
+    expect(relatorio.criterios.map((c) => c.nivel)).toEqual(["bom", "bom", "bom", "a_melhorar"]);
+    expect(relatorio.criterios.every((c) => c.motivo === `motivo ${c.nivel}`)).toBe(true);
+    expect(relatorio.resultado).toBe("acordo");
+    expect(divergentes).toEqual([]);
+  });
+
+  it("quando as três discordam, fica o nível do meio e o critério é marcado para revisar", async () => {
+    const llm = roteiro([
+      com(["bom", "bom", "bom", "bom"]),
+      com(["adequado", "bom", "bom", "bom"]),
+      com(["a_melhorar", "bom", "bom", "bom"]),
+    ]);
+    const { relatorio, divergentes } = await gerarRelatorioVotado(llm, falas, 3);
+    expect(relatorio.criterios[0]!.nivel).toBe("adequado");
+    expect(divergentes).toEqual(["assertividade"]);
+  });
+
+  it("aguenta uma avaliadora que falha: vota com as que responderam", async () => {
+    const erro = new LlmError("Falha ao chamar o provedor de LLM (rede)");
+    const llm = roteiro([com(["bom", "bom", "bom", "bom"]), erro, erro, erro, com(["bom", "bom", "bom", "bom"])]);
+    const { relatorio } = await gerarRelatorioVotado(llm, falas, 3);
+    expect(relatorio.criterios[0]!.nivel).toBe("bom");
   });
 });

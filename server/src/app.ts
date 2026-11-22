@@ -4,7 +4,7 @@ import websocket from "@fastify/websocket";
 import { z } from "zod";
 import { CENARIOS, MARCA_FIM, cenarioPublico, lerPrompt } from "./scenarios.js";
 import { Store } from "./sessions.js";
-import { gerarRelatorio } from "./report.js";
+import { gerarRelatorioVotado } from "./report.js";
 import { Sala } from "./sala.js";
 import { LlmError, type ChatMessage, type LlmProvider } from "./llm/types.js";
 import type { VozProvider } from "./voz/types.js";
@@ -25,6 +25,8 @@ export type AppOptions = {
   limiteSessoesPorJogadorHora?: number;
   /** Atrás de proxy reverso (Traefik): confia no X-Forwarded-For para registrar o IP real. */
   trustProxy?: boolean;
+  /** Quantas avaliações independentes votam em cada relatório (padrão 1; produção: 3). */
+  votosAvaliadora?: number;
   /** Arquivo JSON onde o progresso fica guardado (vazio = só em memória). */
   arquivoProgresso?: string;
   /** Máximo de pessoas ao mesmo tempo na sala multiplayer (padrão 50). */
@@ -220,11 +222,14 @@ export function buildApp(opts: AppOptions) {
     }
     if (!s.relatorio) {
       try {
-        s.relatorio = await gerarRelatorio(opts.llm, s.falas, {
+        const { relatorio, divergentes } = await gerarRelatorioVotado(opts.llm, s.falas, opts.votosAvaliadora ?? 1, {
           cenario: CENARIOS[s.cenarioId],
           model: opts.modeloAvaliadora,
           reasoningEffort: opts.reasoningEffortAvaliadora,
         });
+        s.relatorio = relatorio;
+        // Avaliadoras discordaram totalmente: anota para a equipe revisar a rubrica (sem a conversa).
+        if (divergentes.length) req.log.warn({ cenario: s.cenarioId, divergentes }, "avaliação divergente");
       } catch (err) {
         req.log.warn({ err: err instanceof Error ? err.message : err }, "falha na LLM (avaliadora)");
         return reply.code(502).send({ erro: ERRO_LLM });

@@ -7,8 +7,11 @@ rubrica. Avalie SOMENTE as falas do jogador, usando a rubrica e a meta do cenár
 Regras:
 - Cada nível deve se basear numa fala real do jogador. Copie a fala
   literalmente, sem corrigir nem resumir.
-- Decida o nível comparando a fala com os comportamentos descritos na rubrica, não
-  pela sua impressão geral. Os exemplos da rubrica ilustram; não exija as mesmas palavras.
+- Em cada critério, siga esta ordem: primeiro copie a evidência, depois escreva o
+  motivo comparando a fala com os comportamentos da rubrica, e só então escolha o
+  nível que o motivo sustenta. Não decida o nível antes de olhar a evidência.
+- Decida pelos comportamentos descritos na rubrica, não pela sua impressão geral.
+  Os exemplos do cenário ilustram; não exija as mesmas palavras.
 - "motivo" é 1 frase, falando com o jogador ("você"), que diz qual comportamento da
   rubrica apareceu na evidência e, se não for "bom", o que faltou para o próximo nível.
   Só cite o que está nas falas; não invente intenção nem comportamento.
@@ -24,10 +27,10 @@ Regras:
 
 {
   "criterios": [
-    {"nome": "assertividade", "nivel": "a_melhorar|adequado|bom", "evidencia": "fala literal do jogador", "motivo": "1 frase"},
-    {"nome": "escuta", "nivel": "...", "evidencia": "...", "motivo": "..."},
-    {"nome": "negociacao", "nivel": "...", "evidencia": "...", "motivo": "..."},
-    {"nome": "conflitos", "nivel": "...", "evidencia": "...", "motivo": "..."}
+    {"nome": "assertividade", "evidencia": "fala literal do jogador", "motivo": "1 frase", "nivel": "a_melhorar|adequado|bom"},
+    {"nome": "escuta", "evidencia": "...", "motivo": "...", "nivel": "..."},
+    {"nome": "negociacao", "evidencia": "...", "motivo": "...", "nivel": "..."},
+    {"nome": "conflitos", "evidencia": "...", "motivo": "...", "nivel": "..."}
   ],
   "ponto_forte": {"trecho": "fala literal do jogador", "comentario": "1 frase"},
   "para_treinar": {"criterio": "assertividade|escuta|negociacao|conflitos", "voce_disse": "fala literal do jogador", "tente": "sugestão de fala"},
