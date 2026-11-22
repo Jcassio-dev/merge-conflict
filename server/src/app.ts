@@ -1,9 +1,11 @@
 import Fastify from "fastify";
 import cors from "@fastify/cors";
+import websocket from "@fastify/websocket";
 import { z } from "zod";
 import { CENARIOS, MARCA_FIM, lerPrompt } from "./scenarios.js";
 import { Store } from "./sessions.js";
 import { gerarRelatorio } from "./report.js";
+import { Sala } from "./sala.js";
 import { LlmError, type ChatMessage, type LlmProvider } from "./llm/types.js";
 import type { VozProvider } from "./voz/types.js";
 
@@ -23,6 +25,8 @@ export type AppOptions = {
   limiteSessoesPorJogadorHora?: number;
   /** Atrás de proxy reverso (Traefik): confia no X-Forwarded-For para registrar o IP real. */
   trustProxy?: boolean;
+  /** Máximo de pessoas ao mesmo tempo na sala multiplayer (padrão 50). */
+  limiteSala?: number;
 };
 
 const NovaSessao = z.object({
@@ -67,6 +71,26 @@ export function buildApp(opts: AppOptions) {
   app.register(cors, { origin: origens.length ? origens : true });
 
   app.get("/health", async () => ({ ok: true }));
+
+  // Sala multiplayer do escritório (WebSocket): posição e apelido de quem está jogando.
+  const sala = new Sala(opts.limiteSala ?? 50);
+  app.register(websocket, { options: { maxPayload: 512 } });
+  app.register(async (f) => {
+    f.get("/api/sala", { websocket: true }, (socket) => {
+      const conexao = {
+        enviar: (msg: object) => {
+          if (socket.readyState === socket.OPEN) socket.send(JSON.stringify(msg));
+        },
+      };
+      if (!sala.conectar(conexao)) {
+        socket.close(1013, "Sala cheia");
+        return;
+      }
+      socket.on("message", (dado) => sala.receber(conexao, String(dado)));
+      socket.on("close", () => sala.desconectar(conexao));
+      socket.on("error", () => sala.desconectar(conexao));
+    });
+  });
 
   // Começa uma tentativa do cenário. Devolve a fala de abertura (fixa).
   app.post("/api/sessoes", async (req, reply) => {

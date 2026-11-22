@@ -49,6 +49,7 @@ const app = buildApp({
   limiteSessoesPorHora: Number(env.LIMITE_SESSOES_POR_HORA ?? 0),
   limiteSessoesPorJogadorHora: Number(env.LIMITE_SESSOES_POR_JOGADOR_HORA ?? 10),
   trustProxy: env.TRUST_PROXY === "true",
+  limiteSala: Number(env.LIMITE_SALA ?? 50),
 });
 
 app.listen({ port: Number(env.PORT ?? 8787), host: "0.0.0.0" }).catch((err) => {
