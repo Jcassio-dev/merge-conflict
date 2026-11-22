@@ -40,24 +40,24 @@ describe("sala multiplayer", () => {
 
     const a = await app.injectWS("/api/sala");
     const ouveA = ouvir(a);
-    enviar(a, { t: "entrar", nome: "Ana", aparencia: { corpo: 2, olhos: 5, cabelo: 41, roupa: 7, chapeu: -1, acessorio: 3, corCabelo: "#D0609A" }, x: 64, y: 544, dir: "baixo" });
+    enviar(a, { t: "entrar", nome: "Ana", aparencia: { corpo: 2, olhos: 5, cabelo: 34, roupa: 7, chapeu: 3, corCabelo: "#D0609A" }, x: 64, y: 544, dir: "baixo" });
     const bemA = await ouveA.proxima("bemvindo");
     expect(bemA.outros).toEqual([]);
 
     const b = await app.injectWS("/api/sala");
     const ouveB = ouvir(b);
-    enviar(b, { t: "entrar", nome: "Bruno", aparencia: { corpo: 99, olhos: -1, cabelo: 42, roupa: "x", chapeu: 27, corCabelo: "red; background:url(x)" }, x: 100, y: 500, dir: "cima" });
+    enviar(b, { t: "entrar", nome: "Bruno", aparencia: { corpo: 9, olhos: -1, cabelo: 35, roupa: "x", chapeu: 8, corCabelo: "red; background:url(x)" }, x: 100, y: 500, dir: "cima" });
     const bemB = await ouveB.proxima("bemvindo");
     expect(bemB.outros).toEqual([
-      expect.objectContaining({ id: bemA.id, nome: "Ana", aparencia: { corpo: 2, olhos: 5, cabelo: 41, roupa: 7, chapeu: -1, acessorio: 3, corCabelo: "#d0609a" }, x: 64, y: 544 }),
+      expect.objectContaining({ id: bemA.id, nome: "Ana", aparencia: { corpo: 2, olhos: 5, cabelo: 34, roupa: 7, chapeu: 3, corCabelo: "#d0609a" }, x: 64, y: 544 }),
     ]);
 
     const entrou = await ouveA.proxima("entrou");
-    // partes fora da faixa (ou que faltam) viram 0; chapéu e acessório viram -1 (nenhum)
+    // partes fora da faixa (ou que faltam) viram 0; o chapéu vira -1 (nenhum)
     expect(entrou.jogador).toMatchObject({
       id: bemB.id,
       nome: "Bruno",
-      aparencia: { corpo: 0, olhos: 0, cabelo: 0, roupa: 0, chapeu: -1, acessorio: -1, corCabelo: "#4a2f1f" },
+      aparencia: { corpo: 0, olhos: 0, cabelo: 0, roupa: 0, chapeu: -1, corCabelo: "#4a2f1f" },
     });
 
     enviar(b, { t: "mover", x: 120, y: 510, dir: "direita", andando: true });

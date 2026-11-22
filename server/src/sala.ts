@@ -6,9 +6,9 @@ import { z } from "zod";
 
 export const MAX_NOME = 20;
 /** Quantas peças Woka há em cada parte do boneco (igual a panel/public/mapa/woka/woka.json). */
-export const PARTES = { corpo: 34, olhos: 34, cabelo: 42, roupa: 74, chapeu: 27, acessorio: 34 } as const;
+export const PARTES = { corpo: 9, olhos: 28, cabelo: 35, roupa: 37, chapeu: 8 } as const;
 /** Partes que podem ficar vazias (-1). */
-const OPCIONAIS = new Set(["chapeu", "acessorio"]);
+const OPCIONAIS = new Set(["chapeu"]);
 export type Aparencia = Record<keyof typeof PARTES, number> & { corCabelo: string };
 const COR_PADRAO = "#4a2f1f";
 /** Mensagens de movimento mais próximas que isso são descartadas (≈ 20 por segundo). */
@@ -55,7 +55,7 @@ export function limparNome(bruto: unknown, numero: number): string {
   return limpo || `Visitante ${numero}`;
 }
 
-/** Cada parte do boneco vira um número válido; o que vier errado ou faltar vira 0 (ou -1, nas opcionais). */
+/** Cada parte do boneco vira um número válido; o que vier errado ou faltar vira 0 (ou -1 no chapéu). */
 export function limparAparencia(bruta: unknown): Aparencia {
   const a = (typeof bruta === "object" && bruta ? bruta : {}) as Record<string, unknown>;
   const cor = typeof a.corCabelo === "string" && /^#[0-9a-f]{6}$/i.test(a.corCabelo) ? a.corCabelo.toLowerCase() : COR_PADRAO;

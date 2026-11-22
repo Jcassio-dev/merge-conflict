@@ -7,9 +7,9 @@
 
 import type { Direcao } from "./rede";
 
-export const PARTES = ["corpo", "olhos", "cabelo", "roupa", "chapeu", "acessorio"] as const;
+export const PARTES = ["corpo", "olhos", "cabelo", "roupa", "chapeu"] as const;
 export type Parte = (typeof PARTES)[number];
-/** Índice da peça em cada camada (-1 = nenhuma, só chapéu e acessório) e a cor do cabelo. */
+/** Índice da peça em cada camada (-1 = nenhuma, só no chapéu) e a cor do cabelo. */
 export type Aparencia = Record<Parte, number> & { corCabelo: string };
 
 /** Cores prontas do cabelo; o jogador também pode escolher qualquer outra. */
@@ -28,13 +28,13 @@ export const CORES_CABELO: { nome: string; cor: string }[] = [
 const COR_HEX = /^#[0-9a-f]{6}$/i;
 
 const ARQUIVO: Record<Parte, string> = {
-  corpo: "color", olhos: "eyes", cabelo: "hairs", roupa: "clothes", chapeu: "hats", acessorio: "accessories",
+  corpo: "color", olhos: "eyes", cabelo: "hairs", roupa: "clothes", chapeu: "hats",
 };
 export const OPCIONAL: Record<Parte, boolean> = {
-  corpo: false, olhos: false, cabelo: false, roupa: false, chapeu: true, acessorio: true,
+  corpo: false, olhos: false, cabelo: false, roupa: false, chapeu: true,
 };
 export const ROTULO: Record<Parte, string> = {
-  corpo: "Pele", olhos: "Olhos", cabelo: "Cabelo", roupa: "Roupa", chapeu: "Chapéu", acessorio: "Acessório",
+  corpo: "Pele", olhos: "Olhos", cabelo: "Cabelo", roupa: "Roupa", chapeu: "Chapéu",
 };
 
 export const DIRECOES: Direcao[] = ["baixo", "esquerda", "direita", "cima"];
@@ -89,9 +89,8 @@ export function aparenciaAleatoria(): Aparencia {
     cabelo: r(TOTAL.cabelo),
     corCabelo: CORES_CABELO[r(8)]!.cor, // sorteio só entre as cores naturais
     roupa: r(TOTAL.roupa),
-    // chapéu e acessório só às vezes, para o sorteio não ficar carnavalesco
-    chapeu: Math.random() < 0.3 ? r(TOTAL.chapeu) : -1,
-    acessorio: Math.random() < 0.3 ? r(TOTAL.acessorio) : -1,
+    // chapéu só às vezes, para o sorteio não ficar carnavalesco
+    chapeu: Math.random() < 0.25 ? r(TOTAL.chapeu) : -1,
   };
 }
 
@@ -112,33 +111,34 @@ export function folhaDoBoneco(a: Aparencia): HTMLCanvasElement {
     if (p === "cabelo") ctx.drawImage(cabeloPintado(i, a.corCabelo), 0, 0);
     else ctx.drawImage(atlas[p], (i % colunas) * L, Math.floor(i / colunas) * A, L, A, 0, 0, L, A);
   }
-  if (cache.size > 200) cache.clear();
+  // Arrastar o seletor de cor cria muitas combinações; não deixa o cache crescer sem fim.
+  if (cache.size > 300) cache.delete(cache.keys().next().value!);
   cache.set(chave, folha);
   return folha;
 }
 
-/** O cabelo vem em tons de cinza (montar-woka.py); aqui vira a cor escolhida, com luz e sombra. */
+/** O cabelo vem em tons de cinza (montar-woka.py); aqui vira a cor escolhida, com luz e sombra.
+ * Tudo por composição do canvas (rápido, sem ler pixel a pixel). */
 function cabeloPintado(i: number, cor: string): HTMLCanvasElement {
   const c = document.createElement("canvas");
   c.width = L;
   c.height = A;
-  const g = c.getContext("2d", { willReadFrequently: true })!;
-  g.drawImage(atlas.cabelo, (i % colunas) * L, Math.floor(i / colunas) * A, L, A, 0, 0, L, A);
-  const img = g.getImageData(0, 0, L, A);
-  const r = parseInt(cor.slice(1, 3), 16);
-  const gr = parseInt(cor.slice(3, 5), 16);
-  const b = parseInt(cor.slice(5, 7), 16);
-  // Multiplica: o cinza claro vira a cor, o escuro vira sombra. Um pouco de clareamento
-  // nos tons altos evita que cores escuras (preto) virem um borrão sem detalhe.
-  for (let k = 0; k < img.data.length; k += 4) {
-    if (!img.data[k + 3]) continue;
-    const v = img.data[k]! / 255;
-    const luz = Math.max(0, v - 0.85) * 120;
-    img.data[k] = Math.min(255, r * v + luz);
-    img.data[k + 1] = Math.min(255, gr * v + luz);
-    img.data[k + 2] = Math.min(255, b * v + luz);
-  }
-  g.putImageData(img, 0, 0);
+  const g = c.getContext("2d")!;
+  const sx = (i % colunas) * L;
+  const sy = Math.floor(i / colunas) * A;
+  g.drawImage(atlas.cabelo, sx, sy, L, A, 0, 0, L, A);
+  // Multiplica: o cinza claro vira a cor, o escuro vira sombra.
+  g.globalCompositeOperation = "multiply";
+  g.fillStyle = cor;
+  g.fillRect(0, 0, L, A);
+  // Devolve um pouco do brilho, para cores escuras (preto) não virarem um borrão.
+  g.globalCompositeOperation = "soft-light";
+  g.globalAlpha = 0.6;
+  g.drawImage(atlas.cabelo, sx, sy, L, A, 0, 0, L, A);
+  // Recorta no formato do cabelo (o preenchimento pintou o fundo também).
+  g.globalAlpha = 1;
+  g.globalCompositeOperation = "destination-in";
+  g.drawImage(atlas.cabelo, sx, sy, L, A, 0, 0, L, A);
   return c;
 }
 

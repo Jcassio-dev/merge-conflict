@@ -226,9 +226,23 @@ function montarGrade(): void {
       escolha = { ...escolha, [parteAtual]: i };
       animarPrevia();
     });
-    rotulo.append(input, miniatura({ ...escolha, [parteAtual]: i }, 64));
+    const mini = miniatura({ ...escolha, [parteAtual]: i }, 64);
+    mini.dataset.opcao = String(i);
+    rotulo.append(input, mini);
     if (i < 0) rotulo.insertAdjacentHTML("beforeend", `<span class="nenhum" aria-hidden="true">Nenhum</span>`);
     grade.append(rotulo);
+  }
+}
+
+let gradeTimer: ReturnType<typeof setTimeout> | undefined;
+
+/** Redesenha as miniaturas que já estão na tela, sem recriar a lista. */
+function redesenharGrade(): void {
+  for (const c of grade.querySelectorAll<HTMLCanvasElement>("canvas[data-opcao]")) {
+    const g = c.getContext("2d")!;
+    g.imageSmoothingEnabled = false;
+    g.clearRect(0, 0, c.width, c.height);
+    g.drawImage(miniatura({ ...escolha, [parteAtual]: Number(c.dataset.opcao) }, c.width), 0, 0);
   }
 }
 
@@ -242,11 +256,13 @@ function montarCoresCabelo(): void {
     rotulo.innerHTML = `<input type="radio" name="cor-cabelo" value="${cor}" aria-label="${nome}"><span style="background:${cor}" aria-hidden="true"></span>`;
     lista.append(rotulo);
   }
+  // A prévia muda na hora (ela se redesenha sozinha a cada quadro da animação);
+  // as miniaturas esperam a pessoa parar de arrastar o seletor de cor.
   const trocar = (cor: string) => {
     escolha = { ...escolha, corCabelo: cor };
     marcarCorCabelo();
-    montarGrade();
-    animarPrevia();
+    clearTimeout(gradeTimer);
+    gradeTimer = setTimeout(redesenharGrade, 200);
   };
   lista.addEventListener("change", (e) => trocar((e.target as HTMLInputElement).value));
   coresCabelo.querySelector<HTMLInputElement>("input[type=color]")!.addEventListener("input", (e) => trocar((e.target as HTMLInputElement).value));

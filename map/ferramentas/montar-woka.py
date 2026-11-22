@@ -4,12 +4,11 @@ para o jogo montar o boneco de cada jogador no navegador.
 Uso: python3 map/ferramentas/montar-woka.py <pasta-customisation>
 <pasta-customisation> é play/public/resources/customisation do repositório
 github.com/workadventure/workadventure (subpastas character_color, character_eyes,
-character_hairs, character_clothes, character_hats e character_accessories).
+character_hairs, character_clothes e character_hats).
 Precisa do Pillow.
 
 Cabelos: o WorkAdventure traz cada corte em duas cores. Aqui fica um de cada corte,
-em tons de cinza, para o jogo pintar com a cor que o jogador escolher. Também
-geramos cortes cacheados a partir do formato de cortes existentes (ver CACHEADOS).
+em tons de cinza, para o jogo pintar com a cor que o jogador escolher.
 
 Saída em panel/public/mapa/woka/:
   <camada>.png   peças lado a lado, em grade de 10 colunas; cada peça é uma folha
@@ -27,17 +26,21 @@ from pathlib import Path
 
 from PIL import Image
 
-# Cortes cacheados gerados: (nome, peça original de base, volume em px)
-CACHEADOS = [
-    ("cacheado curto", 2, 1),
-    ("cacheado médio", 12, 1),
-    ("cachos longos", 37, 1),
-    ("black power", 2, 2),
-]
-T = 32
+CAMADAS = ["color", "eyes", "hairs", "clothes", "hats"]
 
-CAMADAS = ["color", "eyes", "hairs", "clothes", "hats", "accessories"]
+# Curadoria: só peças que combinam com um escritório (posição da peça na lista ordenada
+# pelo número do arquivo, a mesma ordem do atlas completo).
+# Fora: fantasmas, esqueletos e tons repetidos de pele; olhos borrados ou de monstro;
+# roupa íntima, armaduras e fantasias; capacetes, abóbora e chapéus quase vazios.
+# Os acessórios do WorkAdventure são quase todos armas (espada, escudo, arco): não entram.
+MANTER = {
+    "color": [9, 4, 3, 8, 5, 10, 6, 11, 12],
+    "eyes": [*range(0, 10), 15, 16, *range(18, 34)],
+    "clothes": [1, 2, 4, *range(13, 25), 28, 29, 30, 35, 36, 39, 40, 41, 42, *range(47, 57), 58, 68, 69],
+    "hats": [9, 11, 12, 13, 17, 18, 19, 20],
+}
 LARGURA, ALTURA = 96, 128
+T = 32
 COLUNAS = 10
 
 
@@ -73,67 +76,21 @@ def em_cinza(folha: Image.Image) -> Image.Image:
     return saida
 
 
-# Cachinho de 4x4 que se repete (deslocado em linhas alternadas): 0 vazio, 1 sombra, 2 tom, 3 brilho.
-CACHO = [
-    [2, 3, 2, 2],
-    [3, 2, 1, 2],
-    [2, 1, 2, 2],
-    [2, 2, 2, 2],
-]
-TONS = {1: 140, 2: 205, 3: 250}
-
-
-def cacheado(base: Image.Image, volume: int, rosto: Image.Image) -> Image.Image:
-    """Cachos a partir do formato de um corte: mais volume para cima e para os lados,
-    sem cobrir o rosto (pele da testa para baixo, tirada de `rosto`), e textura de cachos."""
-    saida = Image.new("RGBA", base.size)
-    pb = base.load()
-    pr = rosto.load()
-    po = saida.load()
-    for linha in range(4):
-        for coluna in range(3):
-            ox, oy = coluna * T, linha * T
-            m = {(x, y) for x in range(T) for y in range(T) if pb[ox + x, oy + y][3]}
-            if not m:
-                continue
-            de_costas = linha == 3
-            pele = {(x, y) for x in range(T) for y in range(T) if pr[ox + x, oy + y][3]}
-            testa = min(y for _x, y in m) + 4
-            fundo = max(y for _x, y in m)
-            proibido = set() if de_costas else {(x, y) for x, y in pele if y >= testa}
-            for _ in range(volume):
-                novo = set(m)
-                for x, y in m:
-                    vizinhos = [(x - 1, y), (x + 1, y), (x, y - 1)]
-                    if de_costas and y < fundo:
-                        vizinhos.append((x, y + 1))
-                    novo.update(
-                        v for v in vizinhos if 0 <= v[0] < T and 0 <= v[1] < T and v not in proibido
-                    )
-                m = novo
-            # borda recortada nas laterais e em cima, para parecer fofo
-            borda = {(x, y) for x, y in m if any(v not in m for v in ((x - 1, y), (x + 1, y), (x, y - 1)))}
-            m -= {(x, y) for x, y in borda if (x + y) % 3 == 0 and (x, y + 1) in m and len(m) > 40}
-            for x, y in m:
-                fora = any(v not in m for v in ((x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1)))
-                desloc = 2 if (y // 4) % 2 else 0
-                v = 60 if fora else TONS[CACHO[y % 4][(x + desloc) % 4]]
-                po[ox + x, oy + y] = (v, v, v, 255)
-    return saida
-
-
-def cabelos_em_cinza(folhas: list[Image.Image], rosto: Image.Image) -> list[Image.Image]:
-    """Um de cada corte (o primeiro de cada formato), em cinza, mais os cacheados."""
+def cabelos_em_cinza(folhas: list[Image.Image]) -> list[Image.Image]:
+    """Um de cada corte (o primeiro de cada formato), em cinza."""
     vistos: set[bytes] = set()
     unicos = []
     for folha in folhas:
         m = mascara(folha)
         if m in vistos:
             continue
+        # Alguns cortes vêm sem uma das direções ou com as direções trocadas (a nuca
+        # aparece por cima do rosto). Só o careca pode ser vazio, e por inteiro.
+        direcoes = [folha.crop((0, r * T, LARGURA, (r + 1) * T)).getbbox() is not None for r in range(4)]
+        if any(direcoes) and not all(direcoes):
+            continue
         vistos.add(m)
         unicos.append(em_cinza(folha))
-    for _nome, base, volume in CACHEADOS:
-        unicos.append(cacheado(folhas[base], volume, rosto))
     return unicos
 
 
@@ -146,6 +103,8 @@ def main() -> None:
     total: dict[str, int] = {}
     for camada in CAMADAS:
         pecas = sorted((origem / f"character_{camada}").glob("*.png"), key=numero)
+        if camada in MANTER:
+            pecas = [pecas[i] for i in MANTER[camada]]
         folhas = []
         for arquivo in pecas:
             folha = Image.open(arquivo).convert("RGBA")
@@ -153,9 +112,7 @@ def main() -> None:
                 sys.exit(f"tamanho inesperado em {arquivo}: {folha.size}")
             folhas.append(folha)
         if camada == "hairs":
-            # o corpo 0 serve de molde do rosto, para os cachos não cobrirem a cara
-            corpo = Image.open(origem / "character_color" / "character_color0.png").convert("RGBA")
-            folhas = cabelos_em_cinza(folhas, corpo)
+            folhas = cabelos_em_cinza(folhas)
         linhas = (len(folhas) + COLUNAS - 1) // COLUNAS
         atlas = Image.new("RGBA", (COLUNAS * LARGURA, linhas * ALTURA))
         for i, folha in enumerate(folhas):
