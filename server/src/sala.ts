@@ -5,8 +5,10 @@ import { z } from "zod";
 // Nada é guardado: quem sai some da memória. Sem vídeo e sem chat.
 
 export const MAX_NOME = 20;
-/** Quantas opções há em cada parte do boneco (igual a panel/src/jogo/boneco.ts). */
-export const PARTES = { pele: 6, estilo: 4, cabelo: 7, camisa: 8, calca: 4 } as const;
+/** Quantas peças Woka há em cada parte do boneco (igual a panel/public/mapa/woka/woka.json). */
+export const PARTES = { corpo: 34, olhos: 34, cabelo: 74, roupa: 74, chapeu: 27, acessorio: 34 } as const;
+/** Partes que podem ficar vazias (-1). */
+const OPCIONAIS = new Set(["chapeu", "acessorio"]);
 export type Aparencia = Record<keyof typeof PARTES, number>;
 /** Mensagens de movimento mais próximas que isso são descartadas (≈ 20 por segundo). */
 const INTERVALO_MIN_MS = 45;
@@ -52,13 +54,14 @@ export function limparNome(bruto: unknown, numero: number): string {
   return limpo || `Visitante ${numero}`;
 }
 
-/** Cada parte do boneco vira um número válido; o que vier errado ou faltar vira 0. */
+/** Cada parte do boneco vira um número válido; o que vier errado ou faltar vira 0 (ou -1, nas opcionais). */
 export function limparAparencia(bruta: unknown): Aparencia {
   const a = (typeof bruta === "object" && bruta ? bruta : {}) as Record<string, unknown>;
   const limpa = {} as Aparencia;
   for (const [parte, total] of Object.entries(PARTES) as [keyof Aparencia, number][]) {
     const v = a[parte];
-    limpa[parte] = typeof v === "number" && Number.isInteger(v) && v >= 0 && v < total ? v : 0;
+    const min = OPCIONAIS.has(parte) ? -1 : 0;
+    limpa[parte] = typeof v === "number" && Number.isInteger(v) && v >= min && v < total ? v : min;
   }
   return limpa;
 }

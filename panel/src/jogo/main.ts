@@ -3,8 +3,8 @@ import "./jogo.css";
 import { retratoMarina } from "../retrato";
 import { caminho, type Tile } from "./caminho";
 import {
-  CABELOS, CALCAS, CAMISAS, DIRECOES, ESTILOS, NOMES, PELES,
-  aparenciaAleatoria, aparenciaValida, corCss, folhaDoBoneco, type Aparencia,
+  DIRECOES, OPCIONAL, PARTES, ROTULO, TOTAL,
+  aparenciaAleatoria, aparenciaValida, carregarPecas, folhaDoBoneco, quadroDoPasso, type Aparencia, type Parte,
 } from "./boneco";
 import { CAMADA_BALAO, Mapa } from "./mapa";
 import { Rede, urlSala, type Direcao, type Outro } from "./rede";
@@ -71,7 +71,8 @@ void iniciar();
 
 async function iniciar(): Promise<void> {
   try {
-    mapa = await Mapa.carregar(`${BASE}mapa/escritorio.tmj`);
+    [mapa] = await Promise.all([Mapa.carregar(`${BASE}mapa/escritorio.tmj`), carregarPecas(BASE)]);
+    eu.aparencia = aparenciaValida(eu.aparencia);
   } catch (e) {
     console.error(e);
     aviso.textContent = "O escritório não carregou. Recarregue a página.";
@@ -151,17 +152,20 @@ function atualizarContador(): void {
 // ---------- apelido e boneco ----------
 const formEntrada = entrada.querySelector("form")!;
 const previa = entrada.querySelector<HTMLCanvasElement>("#previa")!;
+const abas = entrada.querySelector<HTMLElement>(".abas")!;
+const grade = entrada.querySelector<HTMLElement>(".grade")!;
+let escolha: Aparencia = aparenciaValida(undefined);
+let parteAtual: Parte = "corpo";
 let previaTimer: ReturnType<typeof setInterval> | undefined;
 
-function aparenciaDoForm(): Aparencia {
-  const d = new FormData(formEntrada);
-  return aparenciaValida(Object.fromEntries(["pele", "estilo", "cabelo", "camisa", "calca"].map((k) => [k, Number(d.get(k))])));
-}
-
-function marcar(a: Aparencia): void {
-  for (const [k, v] of Object.entries(a)) {
-    formEntrada.querySelector<HTMLInputElement>(`input[name=${k}][value="${v}"]`)!.checked = true;
-  }
+/** Miniatura de frente (quadro parado) de uma aparência. */
+function miniatura(a: Aparencia, tamanho: number): HTMLCanvasElement {
+  const c = document.createElement("canvas");
+  c.width = c.height = tamanho;
+  const g = c.getContext("2d")!;
+  g.imageSmoothingEnabled = false;
+  g.drawImage(folhaDoBoneco(a), 32, 0, 32, 32, 0, 0, tamanho, tamanho);
+  return c;
 }
 
 /** Prévia ampliada que gira pelas 4 direções andando. */
@@ -170,62 +174,88 @@ function animarPrevia(): void {
   let passo = 0;
   clearInterval(previaTimer);
   const desenhar = () => {
-    const folha = folhaDoBoneco(aparenciaDoForm());
     const d = Math.floor(passo / 8) % 4;
-    const q = [1, 0, 2, 0][passo % 4]!;
+    const q = [0, 1, 2, 1][passo % 4]!;
     c.imageSmoothingEnabled = false;
     c.clearRect(0, 0, previa.width, previa.height);
-    c.drawImage(folha, q * 32, d * 32, 32, 32, 0, 0, previa.width, previa.height);
+    c.drawImage(folhaDoBoneco(escolha), q * 32, d * 32, 32, 32, 0, 0, previa.width, previa.height);
     passo++;
   };
   desenhar();
   previaTimer = setInterval(desenhar, 160);
 }
 
+/** Abas das partes do boneco. */
+function montarAbas(): void {
+  abas.innerHTML = "";
+  for (const p of PARTES) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "aba";
+    b.textContent = ROTULO[p];
+    b.setAttribute("aria-pressed", String(p === parteAtual));
+    b.addEventListener("click", () => {
+      parteAtual = p;
+      montarAbas();
+      montarGrade();
+    });
+    abas.append(b);
+  }
+}
+
+/** Grade com as opções da parte escolhida, cada uma já vestida no seu boneco. */
+function montarGrade(): void {
+  grade.innerHTML = "";
+  grade.setAttribute("aria-label", ROTULO[parteAtual]);
+  const opcoes = [...(OPCIONAL[parteAtual] ? [-1] : []), ...Array.from({ length: TOTAL[parteAtual] }, (_, i) => i)];
+  for (const i of opcoes) {
+    const rotulo = document.createElement("label");
+    rotulo.className = "peca";
+    const nome = i < 0 ? "Nenhum" : `${ROTULO[parteAtual]} ${i + 1}`;
+    rotulo.title = nome;
+    const input = document.createElement("input");
+    input.type = "radio";
+    input.name = "peca";
+    input.value = String(i);
+    input.checked = escolha[parteAtual] === i;
+    input.setAttribute("aria-label", nome);
+    input.addEventListener("change", () => {
+      escolha = { ...escolha, [parteAtual]: i };
+      animarPrevia();
+    });
+    rotulo.append(input, miniatura({ ...escolha, [parteAtual]: i }, 64));
+    if (i < 0) rotulo.insertAdjacentHTML("beforeend", `<span class="nenhum" aria-hidden="true">Nenhum</span>`);
+    grade.append(rotulo);
+  }
+}
+
 function abrirEntrada(): void {
   const campo = formEntrada.querySelector<HTMLInputElement>("input[name=apelido]")!;
   campo.value = eu.nome || ler("cd-apelido");
-  marcar(eu.nome ? eu.aparencia : (aparenciaSalva() ?? aparenciaAleatoria()));
+  escolha = eu.nome ? eu.aparencia : (aparenciaSalva() ?? aparenciaAleatoria());
+  montarAbas();
+  montarGrade();
   entrada.showModal();
   animarPrevia();
   campo.focus();
 }
 
 function montarEntrada(): void {
-  const amostras = (nome: keyof typeof NOMES, cores: readonly (readonly [number, number, number])[]) => {
-    const grupo = formEntrada.querySelector(`[data-parte=${nome}]`)!;
-    cores.forEach((cor, i) => {
-      const rotulo = document.createElement("label");
-      rotulo.className = "amostra";
-      rotulo.title = NOMES[nome][i]!;
-      rotulo.innerHTML = `<input type="radio" name="${nome}" value="${i}"><span style="background:${corCss(cor)}" aria-hidden="true"></span><span class="sr">${NOMES[nome][i]}</span>`;
-      grupo.append(rotulo);
-    });
-  };
-  amostras("pele", PELES);
-  amostras("cabelo", CABELOS);
-  amostras("camisa", CAMISAS);
-  amostras("calca", CALCAS);
-  const estilos = formEntrada.querySelector("[data-parte=estilo]")!;
-  ESTILOS.forEach((nome, i) => {
-    const rotulo = document.createElement("label");
-    rotulo.className = "opcao";
-    rotulo.innerHTML = `<input type="radio" name="estilo" value="${i}"><span>${nome}</span>`;
-    estilos.append(rotulo);
+  formEntrada.querySelector("#sortear")!.addEventListener("click", () => {
+    escolha = aparenciaAleatoria();
+    montarGrade();
+    animarPrevia();
   });
-
-  formEntrada.querySelector("#sortear")!.addEventListener("click", () => marcar(aparenciaAleatoria()));
   formEntrada.addEventListener("submit", (e) => {
     e.preventDefault();
     const dados = new FormData(formEntrada);
     const nome = String(dados.get("apelido") ?? "").replace(/\s+/g, " ").trim().slice(0, 20);
-    const aparencia = aparenciaDoForm();
     // Sem apelido: "Visitante 42", para não ficar todo mundo com o mesmo nome.
     const final = nome || `Visitante ${10 + Math.floor(Math.random() * 90)}`;
     salvar("cd-apelido", final);
-    salvar("cd-aparencia", JSON.stringify(aparencia));
+    salvar("cd-aparencia", JSON.stringify(escolha));
     entrada.close();
-    entrar(final, aparencia);
+    entrar(final, escolha);
   });
   entrada.addEventListener("close", () => clearInterval(previaTimer));
   // Fechar com Esc: na primeira vez entra assim mesmo; depois, só desiste da mudança.
@@ -444,8 +474,7 @@ function posicionarCamera(): void {
 
 function desenharBoneco(b: Boneco): void {
   const t = 32;
-  // Ciclo do passo: esquerdo, parado, direito, parado.
-  const quadro = b.andando ? [1, 0, 2, 0][Math.floor(b.passo / 0.14) % 4]! : 0;
+  const quadro = quadroDoPasso(b.andando, b.passo);
   const linha = DIRECOES.indexOf(b.dir);
   ctx.drawImage(folhaDoBoneco(b.aparencia), quadro * t, linha * t, t, t, Math.round(b.x - 16), Math.round(b.y - 30), t, t);
 }
