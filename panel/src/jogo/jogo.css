@@ -38,9 +38,17 @@ body.jogo { display: flex; min-height: 0; }
   position: absolute; left: 12px; bottom: 8px; margin: 0; padding: 2px 8px;
   font-size: 0.85rem; color: var(--papel-claro); background: rgba(43, 34, 51, 0.8); border-radius: var(--raio);
 }
-/* Sem teclado (celular, tablet): não fala em ESPAÇO nem em setas. */
+.ajuda-toque {
+  display: none; position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); margin: 0;
+  padding: 4px 12px; font-size: 0.95rem; font-weight: 700; white-space: nowrap;
+  color: var(--papel-claro); background: rgba(43, 34, 51, 0.85); border-radius: var(--raio);
+}
+/* Sem teclado (celular, tablet): não fala em ESPAÇO nem em setas; ensina a tocar. */
 @media (hover: none) and (pointer: coarse) {
   .cartao-marina .dica, .ajuda { display: none; }
+  .ajuda-toque { display: block; }
+  /* o cartão da Marina fica acima da dica */
+  .cartao-flutuante.rodape { bottom: 64px; }
 }
 
 /* Conversa com a Marina: modal no centro, com o escritório escurecido atrás. */
