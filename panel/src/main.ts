@@ -174,14 +174,23 @@ function telaRelatorio(): string {
         <p><strong>Tente:</strong> “${esc(r.para_treinar.tente)}”</p></article>
     </div>`;
   const citadas = new Set(r.criterios.map((c) => c.evidencia.trim()));
-  const detalhe = `<ol class="transcricao">${estado.falas
+  const porQue = `<h2>Por que cada nível</h2>
+    <ul class="motivos">${r.criterios
+      .map((c) => `<li><strong>${NOMES[c.nome]}: ${NIVEIS[c.nivel].texto.toLowerCase()}.</strong>
+        ${c.motivo ? esc(c.motivo) : ""}
+        <span class="discreto">Você disse: “${esc(c.evidencia)}”</span></li>`)
+      .join("")}</ul>`;
+  const detalhe = `${porQue}<h2>A conversa</h2><ol class="transcricao">${estado.falas
     .map((f) => {
       const destaque = f.autor === "jogador" && citadas.has(f.texto.trim());
       return `<li class="t-${f.autor}"><span class="quem">${f.autor === "jogador" ? "Você" : "Marina"}</span>
         ${destaque ? `<mark>${esc(f.texto)}</mark>` : esc(f.texto)}</li>`;
     })
     .join("")}</ol>
-    <p class="discreto">Trechos destacados foram usados na avaliação.</p>`;
+    <p class="discreto">Trechos destacados foram usados na avaliação.</p>
+    <p class="discreto base">A rubrica se baseia no roteiro DESC de assertividade (Bower e Bower, 1976),
+      na escuta ativa (Rogers e Farson, 1957; Bodie, 2011), na negociação por interesses
+      (Fisher e Ury, 1981) e nos modos de lidar com conflito (Thomas e Kilmann, 1974).</p>`;
   return `${barra("Relatório da conversa", 7)}
   <section class="relatorio">
     <p class="resultado">${RESULTADOS[r.resultado]}</p>

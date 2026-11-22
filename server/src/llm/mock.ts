@@ -50,10 +50,30 @@ function avaliar(transcricao: string): string {
   const resultado = s.impacto && s.proposta ? "acordo" : s.aceita ? "sobrecarga_aceita" : "sem_acordo";
   return JSON.stringify({
     criterios: [
-      { nome: "assertividade", nivel: nivel(s.impacto && s.proposta && !s.rispido, s.impacto || s.proposta), evidencia: ultima },
-      { nome: "escuta", nivel: nivel(s.escuta, !s.rispido), evidencia: primeira },
-      { nome: "negociacao", nivel: nivel(s.proposta, s.impacto), evidencia: ultima },
-      { nome: "conflitos", nivel: nivel(resultado === "acordo", !s.rispido), evidencia: ultima },
+      {
+        nome: "assertividade",
+        nivel: nivel(s.impacto && s.proposta && !s.rispido, s.impacto || s.proposta),
+        evidencia: ultima,
+        motivo: s.impacto && s.proposta ? "Você disse o impacto e fez uma proposta." : "Faltou dizer o impacto e propor algo.",
+      },
+      {
+        nome: "escuta",
+        nivel: nivel(s.escuta, !s.rispido),
+        evidencia: primeira,
+        motivo: s.escuta ? "Você mostrou que entendeu o lado da Marina." : "Faltou perguntar o que a Marina precisa.",
+      },
+      {
+        nome: "negociacao",
+        nivel: nivel(s.proposta, s.impacto),
+        evidencia: ultima,
+        motivo: s.proposta ? "Você ofereceu uma alternativa." : "Faltou oferecer uma alternativa concreta.",
+      },
+      {
+        nome: "conflitos",
+        nivel: nivel(resultado === "acordo", !s.rispido),
+        evidencia: ultima,
+        motivo: resultado === "acordo" ? "Vocês fecharam um combinado." : "A conversa terminou sem combinado.",
+      },
     ],
     ponto_forte: { trecho: ultima, comentario: "Você manteve a conversa aberta até o fim." },
     para_treinar: {

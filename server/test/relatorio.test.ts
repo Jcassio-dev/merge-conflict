@@ -14,6 +14,7 @@ const valido = JSON.stringify({
     nome,
     nivel: "adequado",
     evidencia: fala,
+    motivo: "Disse o impacto e fez uma proposta, mas não perguntou o que a Marina precisa.",
   })),
   ponto_forte: { trecho: fala, comentario: "Boa proposta." },
   para_treinar: { criterio: "escuta", voce_disse: fala, tente: "O que pesa mais para você?" },
@@ -44,6 +45,14 @@ describe("gerarRelatorio", () => {
     const llm = roteiro(["isso não é json", new LlmError("Resposta cortada pelo limite de tokens"), valido]);
     await expect(gerarRelatorio(llm, falas)).resolves.toMatchObject({ resultado: "acordo" });
     expect(llm.chamadas).toBe(3);
+  });
+
+  it("motivo é obrigatório em cada critério: sem ele, tenta de novo", async () => {
+    const semMotivo = JSON.stringify({ ...JSON.parse(valido), criterios: JSON.parse(valido).criterios.map((c: object) => ({ ...c, motivo: undefined })) });
+    const llm = roteiro([semMotivo, valido]);
+    const r = await gerarRelatorio(llm, falas);
+    expect(r.criterios[0]!.motivo).toContain("impacto");
+    expect(llm.chamadas).toBe(2);
   });
 
   it("desiste depois de 3 tentativas e diz o motivo da última, sem o texto da conversa", async () => {

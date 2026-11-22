@@ -4,7 +4,7 @@ export type Nivel = "a_melhorar" | "adequado" | "bom";
 export type NomeCriterio = "assertividade" | "escuta" | "negociacao" | "conflitos";
 
 export type Relatorio = {
-  criterios: { nome: NomeCriterio; nivel: Nivel; evidencia: string }[];
+  criterios: { nome: NomeCriterio; nivel: Nivel; evidencia: string; motivo?: string }[];
   ponto_forte: { trecho: string; comentario: string };
   para_treinar: { criterio: NomeCriterio; voce_disse: string; tente: string };
   resultado: "acordo" | "sem_acordo" | "sobrecarga_aceita";

@@ -179,3 +179,9 @@ mark { background: var(--marca); color: var(--tinta); padding: 0 2px; }
 }
 .fala .quem .ouvir:hover:not(:disabled) { transform: none; box-shadow: none; }
 button[data-acao="microfone"][aria-pressed="true"] { background: var(--marca); border-color: var(--madeira); }
+
+/* relatório: por que cada nível */
+.motivos { list-style: none; padding: 0; margin: 0 0 16px; display: flex; flex-direction: column; gap: 10px; }
+.motivos li { background: var(--papel-claro); border: 3px solid var(--madeira-clara); border-radius: var(--raio); padding: 8px 12px; }
+.motivos .discreto { display: block; margin-top: 4px; font-style: italic; }
+.relatorio .base { margin-top: 12px; font-size: 0.85rem; }

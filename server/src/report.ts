@@ -8,7 +8,15 @@ const Criterio = z.enum(["assertividade", "escuta", "negociacao", "conflitos"]);
 
 export const RelatorioSchema = z.object({
   criterios: z
-    .array(z.object({ nome: Criterio, nivel: Nivel, evidencia: z.string() }))
+    .array(
+      z.object({
+        nome: Criterio,
+        nivel: Nivel,
+        evidencia: z.string(),
+        /** Por que esse nível: qual comportamento da rubrica apareceu (ou faltou) na evidência. */
+        motivo: z.string().trim().min(1).max(400),
+      }),
+    )
     .length(4),
   ponto_forte: z.object({ trecho: z.string(), comentario: z.string() }),
   para_treinar: z.object({ criterio: Criterio, voce_disse: z.string(), tente: z.string() }),
