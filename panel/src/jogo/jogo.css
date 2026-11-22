@@ -1,0 +1,84 @@
+/* Página do escritório: mapa em tela cheia e o painel da conversa ao lado. */
+html, body.jogo { height: 100%; overflow: hidden; }
+body.jogo { display: flex; min-height: 0; }
+
+#palco { position: relative; flex: 1; min-width: 0; height: 100%; }
+#tela { display: block; width: 100%; height: 100%; touch-action: none; cursor: pointer; }
+#tela:focus { outline: none; }
+#tela:focus-visible { outline: 3px solid var(--marca); outline-offset: -3px; }
+
+.barra-jogo {
+  position: absolute; top: 12px; left: 12px; max-width: calc(100% - 24px);
+  display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; padding: 8px 12px;
+  background: var(--papel); border: 4px solid var(--madeira); border-radius: var(--raio);
+  box-shadow: inset 0 0 0 2px var(--papel-escuro), 0 3px 0 var(--madeira-escura);
+}
+.barra-jogo h1 { font-size: 1.05rem; margin: 0; }
+.barra-jogo p { margin: 0; font-size: 0.9rem; color: var(--tinta-suave); }
+.barra-jogo .acoes { margin: 0; gap: 8px; }
+.barra-jogo button { min-height: 36px; padding: 4px 10px; font-size: 0.9rem; }
+
+.cartao-flutuante {
+  position: absolute; left: 50%; transform: translateX(-50%);
+  width: min(340px, calc(100% - 24px)); padding: 12px 14px; text-align: center;
+}
+.cartao-flutuante.topo { top: 84px; }
+.cartao-flutuante.rodape { bottom: 48px; }
+.cartao-flutuante h2 { font-size: 1.1rem; margin-bottom: 6px; }
+.cartao-flutuante p { margin-bottom: 10px; }
+.cartao-flutuante button { width: 100%; }
+.cartao-flutuante[hidden] { display: none; }
+
+.cartao-marina { display: flex; align-items: center; gap: 12px; text-align: left; }
+.cartao-marina .retrato { flex: none; width: 60px; height: 60px; padding: 2px; margin: 0; border-width: 3px; }
+.cartao-marina .texto { flex: 1; }
+.cartao-marina .dica { margin: 6px 0 0; font-size: 0.85rem; color: var(--tinta-suave); text-align: center; }
+
+.ajuda {
+  position: absolute; left: 12px; bottom: 8px; margin: 0; padding: 2px 8px;
+  font-size: 0.85rem; color: var(--papel-claro); background: rgba(43, 34, 51, 0.8); border-radius: var(--raio);
+}
+/* Sem teclado (celular, tablet): não fala em ESPAÇO nem em setas. */
+@media (hover: none) and (pointer: coarse) {
+  .cartao-marina .dica, .ajuda { display: none; }
+}
+
+#painel {
+  flex: none; width: min(480px, 45vw); height: 100%; display: flex; flex-direction: column;
+  background: var(--mesa); border-left: 4px solid var(--madeira);
+}
+#painel[hidden] { display: none; }
+.painel-topo { padding: 8px 12px; border-bottom: 3px solid var(--madeira-clara); }
+.painel-topo button { min-height: 36px; padding: 4px 10px; font-size: 0.9rem; }
+#painel iframe { flex: 1; width: 100%; border: 0; background: var(--mesa); }
+
+/* Celular: o painel cobre o mapa; "Voltar ao escritório" fecha. */
+@media (max-width: 720px) {
+  #painel { position: fixed; inset: 0; width: 100%; border-left: 0; z-index: 10; }
+  .barra-jogo h1 { display: none; }
+}
+
+/* escolha do apelido e do boneco */
+#entrada form { margin: 0; }
+#entrada .campo { display: flex; flex-direction: column; gap: 4px; font-weight: 700; margin-bottom: 14px; }
+#entrada input[name=apelido] {
+  font: inherit; padding: 8px 10px; color: var(--tinta);
+  background: var(--papel-claro); border: 3px solid var(--madeira-clara); border-radius: var(--raio);
+}
+#entrada input[name=apelido]::placeholder { color: var(--tinta-suave); }
+#entrada input:focus-visible { outline: 3px solid var(--madeira-escura); outline-offset: 2px; }
+#entrada fieldset { border: 0; padding: 0; margin: 0 0 16px; }
+#entrada legend { font-weight: 700; margin-bottom: 6px; }
+.cores { display: flex; flex-wrap: wrap; gap: 8px; }
+.cor { position: relative; cursor: pointer; }
+.cor input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.cor .boneco {
+  display: block; width: 58px; height: 58px; padding: 3px; border-radius: var(--raio);
+  border: 3px solid var(--madeira-clara); background-color: var(--papel-claro);
+  background-image: url("/mapa/jogadores.png"); background-repeat: no-repeat;
+  background-origin: content-box; background-clip: content-box;
+  background-size: 138px 1104px; background-position: 0 calc(var(--linha) * -46px);
+  image-rendering: pixelated;
+}
+.cor input:checked + .boneco { border-color: var(--folha); box-shadow: 0 0 0 3px var(--folha); }
+.cor input:focus-visible + .boneco { outline: 3px solid var(--madeira-escura); outline-offset: 3px; }

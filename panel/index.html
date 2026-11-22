@@ -6,9 +6,60 @@
     <link rel="icon" href="data:," />
     <title>Conversas Difíceis em TI</title>
   </head>
-  <body>
-    <main id="app" aria-live="polite"></main>
-    <dialog id="ficha" aria-labelledby="ficha-titulo"></dialog>
-    <script type="module" src="/src/main.ts"></script>
+  <body class="jogo">
+    <div id="palco">
+      <canvas id="tela" tabindex="0" role="img"
+        aria-label="Escritório virtual. A Marina está na sala Projeto, no canto direito. Use as setas ou o botão Ir até a Marina."></canvas>
+
+      <header class="barra-jogo">
+        <h1>Conversas Difíceis em TI</h1>
+        <p id="contador">Entrando…</p>
+        <div class="acoes">
+          <button id="ir-marina" type="button">Ir até a Marina</button>
+          <button id="trocar-apelido" type="button" class="secundario">Trocar apelido</button>
+        </div>
+      </header>
+
+      <section id="boas-vindas" class="cartao cartao-flutuante topo" hidden aria-labelledby="bv-titulo">
+        <h2 id="bv-titulo">Boas-vindas ao escritório!</h2>
+        <p>A Marina está esperando você na <strong>sala Projeto</strong>, no canto direito.</p>
+        <button class="primario" type="button">Entendi</button>
+      </section>
+
+      <section id="cartao-marina" class="cartao cartao-flutuante rodape cartao-marina" hidden aria-label="Marina">
+        <div class="retrato"></div>
+        <div class="texto">
+          <button class="primario" type="button">Conversar com a Marina</button>
+          <p class="dica">ou aperte ESPAÇO</p>
+        </div>
+      </section>
+
+      <p class="ajuda">Setas ou WASD para andar. Clique ou toque para ir até um lugar.</p>
+      <p id="aviso" class="sr" aria-live="polite"></p>
+    </div>
+
+    <aside id="painel" hidden aria-label="Conversa com a Marina">
+      <div class="painel-topo">
+        <button id="fechar-painel" type="button" class="secundario">Voltar ao escritório</button>
+      </div>
+      <iframe title="Conversa com a Marina" allow="microphone; autoplay"></iframe>
+    </aside>
+
+    <dialog id="entrada" aria-labelledby="entrada-titulo">
+      <form method="dialog">
+        <h2 id="entrada-titulo">Como você quer aparecer?</h2>
+        <p>Os outros jogadores veem seu apelido e seu boneco. Nada disso é guardado no servidor.</p>
+        <label class="campo">Apelido
+          <input name="apelido" maxlength="20" autocomplete="nickname" placeholder="Visitante">
+        </label>
+        <fieldset>
+          <legend>Boneco</legend>
+          <div class="cores"></div>
+        </fieldset>
+        <button class="primario" type="submit">Entrar no escritório</button>
+      </form>
+    </dialog>
+
+    <script type="module" src="/src/jogo/main.ts"></script>
   </body>
 </html>

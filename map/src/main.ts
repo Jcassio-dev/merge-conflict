@@ -164,7 +164,7 @@ async function abrirPainel(): Promise<void> {
     abrindoPainel = true;
     esconderConvites();
     try {
-        const url = new URL(PANEL_URL);
+        const url = new URL("conversa.html", PANEL_URL.endsWith("/") ? PANEL_URL : `${PANEL_URL}/`);
         url.searchParams.set("cenario", CENARIO);
         url.searchParams.set("jogador", jogadorId());
         // allowApi = false: o painel não precisa controlar o mapa.

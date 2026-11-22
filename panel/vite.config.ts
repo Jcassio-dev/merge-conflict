@@ -7,9 +7,14 @@ export default defineConfig({
   base: process.env.PAINEL_BASE ?? "/",
   build: {
     rollupOptions: {
-      // index.html: painel da conversa (co-website).
-      // overlay.html: janelas pequenas por cima do jogo (WA.ui.website), abertas pelo script do mapa.
-      input: { index: resolve(__dirname, "index.html"), overlay: resolve(__dirname, "overlay.html") },
+      // index.html: o escritório (mapa, movimento e multiplayer). Abre a conversa ao lado.
+      // conversa.html: painel da conversa com a Marina.
+      // overlay.html: só para o plano B no WorkAdventure (janelas por cima do jogo, WA.ui.website).
+      input: {
+        index: resolve(__dirname, "index.html"),
+        conversa: resolve(__dirname, "conversa.html"),
+        overlay: resolve(__dirname, "overlay.html"),
+      },
     },
   },
 });
