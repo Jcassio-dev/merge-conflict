@@ -166,6 +166,26 @@ describe("raciocínio da LLM (reasoning_effort)", () => {
   });
 });
 
+describe("falha de rede", () => {
+  it("repete uma vez quando a conexão cai e diz no erro que foi a rede", async () => {
+    const fetchFalso = vi
+      .fn()
+      .mockRejectedValueOnce(new TypeError("fetch failed"))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ choices: [{ message: { content: "voltou" } }] })))
+      .mockRejectedValueOnce(new TypeError("fetch failed"))
+      .mockRejectedValueOnce(new TypeError("fetch failed"));
+    vi.stubGlobal("fetch", fetchFalso);
+    try {
+      const p = new OpenAICompatibleProvider({ baseUrl: "http://x", apiKey: "k", model: "m", timeoutMs: 1000, jsonMode: true, retryDelayMs: 0 });
+      expect(await p.complete([{ role: "user", content: "oi" }])).toBe("voltou");
+      await expect(p.complete([{ role: "user", content: "oi" }])).rejects.toThrow("rede");
+    } finally {
+      vi.unstubAllGlobals();
+    }
+    expect(fetchFalso).toHaveBeenCalledTimes(4);
+  });
+});
+
 describe("resposta cortada pelo limite de tokens", () => {
   it("o provedor recusa resposta cortada (finish_reason length) em vez de devolver meia frase", async () => {
     vi.stubGlobal(

@@ -42,12 +42,21 @@ export class OpenAICompatibleProvider implements LlmProvider {
           body: JSON.stringify(body),
           signal: controller.signal,
         });
-      let res = await chamar();
+      const esperar = () => new Promise((r) => setTimeout(r, this.cfg.retryDelayMs ?? 500));
+      let res: Response;
+      try {
+        res = await chamar();
+      } catch (err) {
+        // Conexão caiu (não foi o tempo esgotado): uma nova tentativa, no mesmo timeout.
+        if (controller.signal.aborted) throw err;
+        await esperar();
+        res = await chamar();
+      }
       // Sobrecarga ou falha passageira do provedor (429/5xx): uma nova tentativa,
       // dentro do mesmo timeout, para o jogador não ver erro à toa.
       if (res.status === 429 || res.status >= 500) {
         await res.body?.cancel();
-        await new Promise((r) => setTimeout(r, this.cfg.retryDelayMs ?? 500));
+        await esperar();
         res = await chamar();
       }
       if (!res.ok) {
@@ -63,7 +72,9 @@ export class OpenAICompatibleProvider implements LlmProvider {
       return content.trim();
     } catch (err) {
       if (err instanceof LlmError) throw err;
-      throw new LlmError("Falha ao chamar o provedor de LLM", err);
+      // O motivo vai para o log (sem o conteúdo da conversa).
+      const motivo = controller.signal.aborted ? "tempo esgotado" : "rede";
+      throw new LlmError(`Falha ao chamar o provedor de LLM (${motivo})`, err);
     } finally {
       clearTimeout(timer);
     }
