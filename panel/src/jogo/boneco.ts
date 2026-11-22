@@ -25,6 +25,7 @@ export const CORES_CABELO: { nome: string; cor: string }[] = [
   { nome: "Rosa", cor: "#d0609a" },
   { nome: "Azul", cor: "#3d6fd1" },
 ];
+const TONS_HUMANOS = 16;
 const COR_HEX = /^#[0-9a-f]{6}$/i;
 
 const ARQUIVO: Record<Parte, string> = {
@@ -84,7 +85,8 @@ export function aparenciaValida(bruta: unknown): Aparencia {
 export function aparenciaAleatoria(): Aparencia {
   const r = (n: number) => Math.floor(Math.random() * n);
   return {
-    corpo: r(TOTAL.corpo),
+    // Os 16 primeiros são os tons humanos (ordem em montar-woka.py); o sorteio fica neles.
+    corpo: r(Math.min(TONS_HUMANOS, TOTAL.corpo)),
     olhos: r(TOTAL.olhos),
     cabelo: r(TOTAL.cabelo),
     corCabelo: CORES_CABELO[r(8)]!.cor, // sorteio só entre as cores naturais

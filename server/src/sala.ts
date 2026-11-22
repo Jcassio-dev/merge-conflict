@@ -6,7 +6,7 @@ import { z } from "zod";
 
 export const MAX_NOME = 20;
 /** Quantas peças Woka há em cada parte do boneco (igual a panel/public/mapa/woka/woka.json). */
-export const PARTES = { corpo: 9, olhos: 28, cabelo: 35, roupa: 37, chapeu: 8 } as const;
+export const PARTES = { corpo: 33, olhos: 28, cabelo: 35, roupa: 37, chapeu: 8 } as const;
 /** Partes que podem ficar vazias (-1). */
 const OPCIONAIS = new Set(["chapeu"]);
 export type Aparencia = Record<keyof typeof PARTES, number> & { corCabelo: string };

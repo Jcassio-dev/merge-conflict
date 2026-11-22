@@ -30,11 +30,18 @@ CAMADAS = ["color", "eyes", "hairs", "clothes", "hats"]
 
 # Curadoria: só peças que combinam com um escritório (posição da peça na lista ordenada
 # pelo número do arquivo, a mesma ordem do atlas completo).
-# Fora: fantasmas, esqueletos e tons repetidos de pele; olhos borrados ou de monstro;
-# roupa íntima, armaduras e fantasias; capacetes, abóbora e chapéus quase vazios.
+# Pele: todas (menos uma peça vazia), em ordem: tons humanos do mais claro ao mais
+# escuro, depois cinzas e cores de fantasia, e por último as silhuetas pretas, que são
+# um efeito de sombra e não um tom de pele.
+# Fora: olhos borrados ou de monstro; roupa íntima, armaduras e fantasias; capacetes,
+# abóbora e chapéus quase vazios.
 # Os acessórios do WorkAdventure são quase todos armas (espada, escudo, arco): não entram.
 MANTER = {
-    "color": [9, 4, 3, 8, 5, 10, 6, 11, 12],
+    "color": [
+        4, 9, 24, 30, 3, 8, 23, 29, 5, 10, 25, 31, 6, 11, 26, 32,
+        18, 13, 2, 7, 22, 28, 19, 14, 20, 21, 15, 16, 17,
+        0, 12, 27, 33,
+    ],
     "eyes": [*range(0, 10), 15, 16, *range(18, 34)],
     "clothes": [1, 2, 4, *range(13, 25), 28, 29, 30, 35, 36, 39, 40, 41, 42, *range(47, 57), 58, 68, 69],
     "hats": [9, 11, 12, 13, 17, 18, 19, 20],

@@ -46,7 +46,7 @@ describe("sala multiplayer", () => {
 
     const b = await app.injectWS("/api/sala");
     const ouveB = ouvir(b);
-    enviar(b, { t: "entrar", nome: "Bruno", aparencia: { corpo: 9, olhos: -1, cabelo: 35, roupa: "x", chapeu: 8, corCabelo: "red; background:url(x)" }, x: 100, y: 500, dir: "cima" });
+    enviar(b, { t: "entrar", nome: "Bruno", aparencia: { corpo: 33, olhos: -1, cabelo: 35, roupa: "x", chapeu: 8, corCabelo: "red; background:url(x)" }, x: 100, y: 500, dir: "cima" });
     const bemB = await ouveB.proxima("bemvindo");
     expect(bemB.outros).toEqual([
       expect.objectContaining({ id: bemA.id, nome: "Ana", aparencia: { corpo: 2, olhos: 5, cabelo: 34, roupa: 7, chapeu: 3, corCabelo: "#d0609a" }, x: 64, y: 544 }),
