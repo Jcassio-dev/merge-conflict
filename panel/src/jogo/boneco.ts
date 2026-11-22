@@ -47,7 +47,14 @@ const atlas = {} as Record<Parte, HTMLImageElement>;
 export const TOTAL = {} as Record<Parte, number>;
 
 /** Carrega as peças. Precisa terminar antes de desenhar qualquer boneco. */
-export async function carregarPecas(base: string): Promise<void> {
+let carregando: Promise<void> | undefined;
+
+export function carregarPecas(base: string): Promise<void> {
+  carregando ??= carregar_(base);
+  return carregando;
+}
+
+async function carregar_(base: string): Promise<void> {
   const res = await fetch(`${base}mapa/woka/woka.json`);
   if (!res.ok) throw new Error("Peças dos bonecos não carregaram");
   const dados = (await res.json()) as { colunas: number; total: Record<string, number> };

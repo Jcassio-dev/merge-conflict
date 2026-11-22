@@ -9,13 +9,13 @@
   <body class="jogo">
     <div id="palco">
       <canvas id="tela" tabindex="0" role="img"
-        aria-label="Escritório virtual. A Marina está na sala Projeto, no canto direito. Use as setas ou o botão Ir até a Marina."></canvas>
+        aria-label="Escritório virtual com três conversas em sequência: Marina, Sérgio e Diego. Use as setas ou o botão Ir até, no topo."></canvas>
 
       <header class="barra-jogo">
         <h1>Conversas Difíceis em TI</h1>
         <p id="contador">Entrando…</p>
         <div class="acoes">
-          <button id="ir-marina" type="button">Ir até a Marina</button>
+          <button id="ir-proximo" type="button">Ir até a Marina</button>
           <button id="meu-boneco" type="button" class="secundario">Meu boneco</button>
         </div>
       </header>
@@ -26,11 +26,12 @@
         <button class="primario" type="button">Entendi</button>
       </section>
 
-      <section id="cartao-marina" class="cartao cartao-flutuante rodape cartao-marina" hidden aria-label="Marina">
+      <section id="cartao-conversa" class="cartao cartao-flutuante rodape cartao-marina" hidden aria-label="Marina">
         <div class="retrato"></div>
         <div class="texto">
           <button class="primario" type="button">Conversar com a Marina</button>
           <p class="dica">ou aperte ESPAÇO</p>
+          <p class="bloqueio" hidden></p>
         </div>
       </section>
 

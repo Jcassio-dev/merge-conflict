@@ -1,7 +1,7 @@
 import "./style.css";
-import { retratoMarina } from "./retrato";
+import { retratoDe } from "./retrato";
 import { microfoneDisponivel, ouvir, parar as pararVoz, tocar, type Escuta } from "./voz";
-import { api, ApiError, type Fala, type Nivel, type NomeCriterio, type Relatorio } from "./api";
+import { api, ApiError, type InfoCenario, type Fala, type Nivel, type NomeCriterio, type Relatorio } from "./api";
 
 // ---------- parâmetros e armazenamento local ----------
 const params = new URLSearchParams(location.search);
@@ -40,7 +40,7 @@ const estado = {
   textoPendente: "",
   relatorio: undefined as Relatorio | undefined,
   aba: "resumo" as "resumo" | "detalhe",
-  /** O servidor tem voz para a Marina? */
+  /** O servidor tem voz para a personagem? */
   voz: false,
   /** Preferência do jogador (fica no navegador). */
   vozLigada: lerLocal("cd-voz") !== "desligada",
@@ -69,8 +69,17 @@ const NIVEIS: Record<Nivel, { texto: string; passos: number }> = {
 const RESULTADOS: Record<Relatorio["resultado"], string> = {
   acordo: "Acordo fechado",
   sem_acordo: "Conversa encerrada sem acordo",
-  sobrecarga_aceita: "Você aceitou a mudança sem negociar",
+  sobrecarga_aceita: "Você cedeu sem negociar",
 };
+
+// ---------- cenário (vem do servidor) ----------
+let cenarios: InfoCenario[] = [];
+let cenario: InfoCenario = {
+  id: cenarioId, ordem: 1, titulo: "", personagem: { nome: "", papel: "" }, situacao: "", meta: "", maxTrocas: 8,
+};
+let retrato = "";
+const nome = () => cenario.personagem.nome;
+const proximoCenario = () => cenarios.find((c) => c.ordem === cenario.ordem + 1);
 
 const barra = (titulo: string, numero: number) => `
   <header class="barra"><span>Conversas Difíceis em TI · ${esc(titulo)}</span><span>Tela ${numero} de 8</span></header>`;
@@ -89,11 +98,10 @@ function render(): void {
 }
 
 function telaBriefing(): string {
-  return `${barra("Sala Projeto", 2)}
+  return `${barra(`Cenário ${cenario.ordem}`, 2)}
   <section class="cartao">
-    <h1>Cenário 1 · A mudança de última hora</h1>
-    <p>Quarta-feira. A sprint termina na sexta, com demo para o cliente.
-    Marina, a PO, vai pedir algo novo. Sua meta é dizer o que é possível sem romper com ela.</p>
+    <h1>Cenário ${cenario.ordem} · ${esc(cenario.titulo)}</h1>
+    <p>${esc(cenario.situacao)} <strong>Sua meta:</strong> ${esc(cenario.meta.charAt(0).toLowerCase() + cenario.meta.slice(1))}</p>
     <ul class="chips" aria-label="Sobre o cenário">
       <li>Cerca de 15 min</li><li>Responda por texto</li><li>Pode pausar</li>
     </ul>
@@ -114,8 +122,8 @@ function telaDialogo(): string {
   const falas = estado.falas
     .map((f, i) =>
       f.autor === "personagem"
-        ? `<div class="fala marina"><span class="quem">Marina${estado.voz
-            ? ` <button class="ouvir" data-ouvir="${i}" aria-label="Ouvir esta fala da Marina">🔊</button>` : ""}</span><p>${esc(f.texto)}</p></div>`
+        ? `<div class="fala marina"><span class="quem">${esc(nome())}${estado.voz
+            ? ` <button class="ouvir" data-ouvir="${i}" aria-label="Ouvir esta fala de ${esc(nome())}">🔊</button>` : ""}</span><p>${esc(f.texto)}</p></div>`
         : `<div class="fala voce"><span class="quem">Você</span><p>${esc(f.texto)}</p></div>`,
     )
     .join("");
@@ -138,12 +146,12 @@ function telaDialogo(): string {
        </form>
        <div class="acoes"><button data-acao="pausar">II Pausar</button><button data-acao="ficha">Ver ficha</button>
          ${botaoVoz()}</div>`;
-  return `${barra("Sala Projeto", encerrada ? 6 : 3)}
+  return `${barra(`Cenário ${cenario.ordem}`, encerrada ? 6 : 3)}
   <section class="dialogo">
-    <div class="personagem" aria-hidden="true"><div class="retrato">${retratoMarina()}</div><div><strong>Marina</strong><br><span>Product Owner</span></div></div>
+    <div class="personagem" aria-hidden="true"><div class="retrato">${retrato}</div><div><strong>${esc(nome())}</strong><br><span>${esc(cenario.personagem.papel)}</span></div></div>
     <div class="conversa">
       <div class="falas" id="falas">${falas}
-        ${estado.aguardando && !encerrada ? `<p class="digitando" role="status">Marina está digitando…</p>` : ""}</div>
+        ${estado.aguardando && !encerrada ? `<p class="digitando" role="status">${esc(nome())} está digitando…</p>` : ""}</div>
       ${rodape}
     </div>
   </section>`;
@@ -152,7 +160,7 @@ function telaDialogo(): string {
 function botaoVoz(): string {
   if (!estado.voz) return "";
   return `<button data-acao="voz" aria-pressed="${estado.vozLigada}">${
-    estado.vozLigada ? "🔊 Voz da Marina: ligada" : "🔇 Voz da Marina: desligada"}</button>`;
+    estado.vozLigada ? `🔊 Voz de ${esc(nome())}: ligada` : `🔇 Voz de ${esc(nome())}: desligada`}</button>`;
 }
 
 function telaRelatorio(): string {
@@ -183,7 +191,7 @@ function telaRelatorio(): string {
   const detalhe = `${porQue}<h2>A conversa</h2><ol class="transcricao">${estado.falas
     .map((f) => {
       const destaque = f.autor === "jogador" && citadas.has(f.texto.trim());
-      return `<li class="t-${f.autor}"><span class="quem">${f.autor === "jogador" ? "Você" : "Marina"}</span>
+      return `<li class="t-${f.autor}"><span class="quem">${f.autor === "jogador" ? "Você" : esc(nome())}</span>
         ${destaque ? `<mark>${esc(f.texto)}</mark>` : esc(f.texto)}</li>`;
     })
     .join("")}</ol>
@@ -206,9 +214,9 @@ function telaRelatorio(): string {
 
 function telaReflexao(): string {
   const r = estado.relatorio!;
-  return `${barra("Sala Projeto", 8)}
+  return `${barra(`Cenário ${cenario.ordem}`, 8)}
   <section class="reflexao">
-    <h1>Cenário 1 concluído</h1>
+    <h1>Cenário ${cenario.ordem} concluído</h1>
     <p class="discreto">Seu progresso por habilidade</p>
     <dl class="niveis">${r.criterios
       .map((c) => {
@@ -226,7 +234,9 @@ function telaReflexao(): string {
     </div>
     <div class="acoes">
       <button data-acao="repetir">Repetir cenário</button>
-      <button class="primario" disabled title="Disponível depois do MVP">Próximo: Cenário 2 (em breve)</button>
+      ${proximoCenario()
+        ? `<button class="primario" data-acao="proximo">Próximo: Cenário ${proximoCenario()!.ordem}</button>`
+        : `<button class="primario" data-acao="proximo">Voltar ao escritório</button>`}
     </div>
     <p class="discreto">Sem pontos nem ranking: só o progresso por habilidade. Para sair, deixe a sala no mapa.</p>
   </section>`;
@@ -250,7 +260,7 @@ function renderFicha(pausa: boolean): void {
 async function comecar(): Promise<void> {
   estado.aguardando = true; estado.erro = ""; render();
   try {
-    const s = await api.iniciar(jogadorId, cenarioId);
+    const s = await api.iniciar(jogadorId, cenario.id);
     Object.assign(estado, {
       sessaoId: s.sessaoId, maxTrocas: s.maxTrocas, troca: 0, voz: s.voz === true,
       falas: [{ autor: "personagem", texto: s.abertura }], tela: "dialogo", relatorio: undefined, aba: "resumo",
@@ -259,11 +269,11 @@ async function comecar(): Promise<void> {
     estado.erro = e instanceof ApiError ? e.message : "Algo deu errado.";
   }
   estado.aguardando = false; render(); focarCampo();
-  if (estado.tela === "dialogo") falarMarina(0);
+  if (estado.tela === "dialogo") falarPersonagem(0);
 }
 
-/** Toca a fala n da Marina, se a voz estiver ligada. */
-function falarMarina(n: number, mesmoDesligada = false): void {
+/** Toca a fala n da personagem, se a voz estiver ligada. */
+function falarPersonagem(n: number, mesmoDesligada = false): void {
   if (!estado.voz || (!estado.vozLigada && !mesmoDesligada)) return;
   tocar(api.urlVoz(estado.sessaoId, n));
 }
@@ -302,7 +312,7 @@ async function enviar(texto: string): Promise<void> {
     estado.falas.push({ autor: "personagem", texto: r.resposta });
     estado.troca = r.troca; estado.textoPendente = "";
     if (r.encerrada) estado.tela = "encerrada";
-    falarMarina(estado.falas.length - 1);
+    falarPersonagem(estado.falas.length - 1);
   } catch (e) {
     estado.falas.pop(); // a fala não chegou: devolve para o campo
     estado.erro = e instanceof ApiError ? e.message : "Algo deu errado.";
@@ -333,6 +343,7 @@ function ligarEventos(): void {
     b.addEventListener("click", () => {
       const acao = b.dataset.acao;
       if (acao === "comecar" || acao === "repetir") void comecar();
+      if (acao === "proximo") irParaProximo();
       if (acao === "ficha") renderFicha(false);
       if (acao === "pausar") { pararVoz(); escuta?.parar(); renderFicha(true); }
       if (acao === "microfone") alternarMicrofone();
@@ -348,7 +359,7 @@ function ligarEventos(): void {
     }),
   );
   app.querySelectorAll<HTMLButtonElement>("[data-ouvir]").forEach((b) =>
-    b.addEventListener("click", () => falarMarina(Number(b.dataset.ouvir), true)),
+    b.addEventListener("click", () => falarPersonagem(Number(b.dataset.ouvir), true)),
   );
   app.querySelectorAll<HTMLButtonElement>("[data-aba]").forEach((b) =>
     b.addEventListener("click", () => { estado.aba = b.dataset.aba as "resumo" | "detalhe"; render(); }),
@@ -365,7 +376,32 @@ function ligarEventos(): void {
   );
 }
 
-render();
+/** Depois do último relatório: no escritório, o jogo aponta a próxima pessoa; fora dele, abre o próximo cenário. */
+function irParaProximo(): void {
+  const prox = proximoCenario();
+  if (window.parent !== window) {
+    window.parent.postMessage({ tipo: "proximo", cenario: prox?.id ?? "" }, location.origin);
+    return;
+  }
+  if (prox) {
+    const url = new URL(location.href);
+    url.searchParams.set("cenario", prox.id);
+    location.href = url.href;
+  }
+}
+
+async function iniciar(): Promise<void> {
+  try {
+    cenarios = (await api.cenarios()).cenarios;
+    cenario = cenarios.find((c) => c.id === cenarioId) ?? cenarios[0] ?? cenario;
+    estado.maxTrocas = cenario.maxTrocas;
+  } catch (e) {
+    estado.erro = e instanceof Error ? e.message : "O servidor não respondeu.";
+  }
+  retrato = await retratoDe(cenario.id);
+  render();
+}
+void iniciar();
 
 // Aberto dentro do escritório (modal do jogo): Esc pede para fechar a conversa,
 // a menos que a ficha esteja aberta (aí o Esc fecha só a ficha).

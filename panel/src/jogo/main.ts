@@ -1,6 +1,7 @@
 import "../style.css";
 import "./jogo.css";
-import { retratoMarina } from "../retrato";
+import { PERSONAGENS, type Personagem } from "../personagens";
+import { retratoDe } from "../retrato";
 import { caminho, type Tile } from "./caminho";
 import {
   CORES_CABELO, DIRECOES, OPCIONAL, PARTES, ROTULO, TOTAL,
@@ -10,13 +11,16 @@ import { CAMADA_BALAO, Mapa } from "./mapa";
 import { Rede, urlSala, type Direcao, type Outro } from "./rede";
 
 // O escritório: mapa do Tiled, movimento, outros jogadores (só posição e apelido)
-// e a Marina. A conversa abre ao lado, no painel (conversa.html), num iframe.
+// e as personagens dos 3 cenários, em sequência (Marina, depois Sérgio, depois Diego).
+// A conversa abre num modal, no painel (conversa.html), num iframe.
 
 const API = import.meta.env.VITE_API_URL ?? "http://localhost:8787";
 const BASE = import.meta.env.BASE_URL;
-const CENARIO = "cenario-1";
+/** Área do Tiled em volta da Marina; as outras personagens ganham uma área em volta do tile delas. */
 const ZONA_MARINA = "marina";
-const SALA = "sala-projeto";
+const zonaDe = (p: Personagem) => (p.aparencia ? `conversa-${p.cenarioId}` : ZONA_MARINA);
+const comArtigo = (p: Personagem) => `${p.artigo} ${p.nome}`;
+const Maiuscula = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
 const VELOCIDADE = 140; // pixels do mapa por segundo
 const TECLAS: Record<string, [number, number]> = {
   ArrowUp: [0, -1], KeyW: [0, -1],
@@ -48,7 +52,8 @@ const palco = $<HTMLElement>("#palco");
 const aviso = $<HTMLElement>("#aviso");
 const contador = $<HTMLElement>("#contador");
 const cartaoBoasVindas = $<HTMLElement>("#boas-vindas");
-const cartaoMarina = $<HTMLElement>("#cartao-marina");
+const cartaoConversa = $<HTMLElement>("#cartao-conversa");
+const botaoProximo = $<HTMLButtonElement>("#ir-proximo");
 const painel = $<HTMLDialogElement>("#painel");
 const entrada = $<HTMLDialogElement>("#entrada");
 
@@ -62,8 +67,15 @@ let rota: Tile[] = [];
 let areasAtuais = new Set<string>();
 let painelAberto = false;
 let boasVindasFechado = false;
-let concluiu = false;
+/** Cenários já concluídos por este jogador (vem do servidor). */
+let concluidos = new Set<string>();
+/** Personagem cuja área o jogador está agora. */
+let perto: Personagem | undefined;
+/** Personagem da conversa aberta no modal. */
+let conversando: Personagem | undefined;
 let mapa: Mapa;
+/** Personagens desenhadas pelo jogo (Sérgio e Diego); a Marina já está no mapa. */
+const npcs: (Boneco & { p: Personagem })[] = [];
 let camera = { x: 0, y: 0, zoom: 1, dpr: 1 };
 
 // ---------- início ----------
@@ -80,12 +92,12 @@ async function iniciar(): Promise<void> {
   }
   eu.x = mapa.inicio.x;
   eu.y = mapa.inicio.y;
+  colocarPersonagens();
   ajustarTela();
   new ResizeObserver(ajustarTela).observe(palco);
   requestAnimationFrame(quadro);
 
-  concluiu = await concluiuCenario();
-  if (concluiu) mapa.ocultarCamada(CAMADA_BALAO);
+  await atualizarProgresso();
 
   const apelido = ler("cd-apelido");
   if (apelido) entrar(apelido, aparenciaSalva() ?? aparenciaAleatoria());
@@ -131,7 +143,7 @@ function entrar(nome: string, aparencia: Aparencia): void {
       },
     });
     rede.conectar();
-    if (!concluiu) mostrarBoasVindas();
+    if (proxima()) mostrarBoasVindas();
   } else {
     // Mudou o apelido ou o boneco: reconecta para os outros verem.
     rede?.reiniciar();
@@ -320,25 +332,56 @@ function montarEntrada(): void {
 montarEntrada();
 $("#meu-boneco").addEventListener("click", abrirEntrada);
 
-// ---------- progresso ----------
-async function concluiuCenario(): Promise<boolean> {
-  try {
-    const res = await fetch(`${API}/api/progresso/${encodeURIComponent(jogadorId)}`, { signal: AbortSignal.timeout(3000) });
-    if (!res.ok) return false;
-    const dados = (await res.json()) as { progresso?: Record<string, { concluido?: boolean }> };
-    return dados.progresso?.[CENARIO]?.concluido === true;
-  } catch {
-    return false;
+// ---------- personagens e sequência ----------
+/** Sérgio e Diego ficam parados num tile (que vira parede) com uma área de conversa em volta. */
+function colocarPersonagens(): void {
+  const t = mapa.tile;
+  for (const p of PERSONAGENS) {
+    if (!p.aparencia || !p.tile) continue;
+    mapa.bloqueado[p.tile.y * mapa.largura + p.tile.x] = true;
+    mapa.areas.push({ nome: zonaDe(p), x: (p.tile.x - 1) * t, y: (p.tile.y - 1) * t, w: 3 * t, h: 3.5 * t });
+    npcs.push({
+      p, nome: p.nome, aparencia: p.aparencia, dir: "baixo", andando: false, passo: 0,
+      x: p.tile.x * t + t / 2, y: p.tile.y * t + t - 2,
+    });
   }
 }
 
+/** A próxima conversa da sequência (a primeira não concluída), ou nenhuma se acabou. */
+function proxima(): Personagem | undefined {
+  return PERSONAGENS.find((p) => !concluidos.has(p.cenarioId));
+}
+const liberada = (p: Personagem) => concluidos.has(p.cenarioId) || proxima() === p;
+/** Quem vem antes na sequência (para "Primeiro converse com…"). */
+const quemVemAntes = (p: Personagem) => PERSONAGENS.find((q) => q.ordem === p.ordem - 1);
+
+async function atualizarProgresso(): Promise<void> {
+  try {
+    const res = await fetch(`${API}/api/progresso/${encodeURIComponent(jogadorId)}`, { signal: AbortSignal.timeout(3000) });
+    if (res.ok) {
+      const dados = (await res.json()) as { progresso?: Record<string, { concluido?: boolean }> };
+      concluidos = new Set(Object.entries(dados.progresso ?? {}).filter(([, v]) => v.concluido).map(([k]) => k));
+    }
+  } catch {
+    // API fora: segue com o que já sabia (no começo, só a Marina liberada)
+  }
+  // O balão "…" do mapa é da Marina: só aparece enquanto ela é a próxima.
+  if (proxima()?.cenarioId !== "cenario-1") mapa.ocultarCamada(CAMADA_BALAO);
+  const prox = proxima();
+  botaoProximo.hidden = !prox;
+  if (prox) botaoProximo.textContent = `Ir até ${comArtigo(prox)}`;
+}
+
 // ---------- cartões ----------
-function mostrarBoasVindas(): void {
-  if (boasVindasFechado) return;
+function mostrarBoasVindas(texto?: string): void {
+  const prox = proxima();
+  if (!prox) return;
+  const p = cartaoBoasVindas.querySelector("p")!;
+  cartaoBoasVindas.querySelector("h2")!.textContent = texto ? "Próxima conversa" : "Boas-vindas ao escritório!";
+  p.innerHTML = texto ?? `${Maiuscula(comArtigo(prox))} está esperando você <strong>${prox.local}</strong>.`;
   cartaoBoasVindas.hidden = false;
 }
 function fecharBoasVindas(): void {
-  boasVindasFechado = true;
   cartaoBoasVindas.hidden = true;
 }
 cartaoBoasVindas.querySelector("button")!.addEventListener("click", () => {
@@ -346,27 +389,49 @@ cartaoBoasVindas.querySelector("button")!.addEventListener("click", () => {
   tela.focus();
 });
 
-cartaoMarina.querySelector(".retrato")!.innerHTML = retratoMarina();
-cartaoMarina.querySelector("button")!.addEventListener("click", abrirPainel);
+cartaoConversa.querySelector("button")!.addEventListener("click", () => {
+  if (perto && liberada(perto)) abrirPainel(perto);
+});
 
-function mostrarConvite(): void {
-  cartaoMarina.querySelector("button")!.textContent = concluiu ? "Conversar de novo" : "Conversar com a Marina";
-  cartaoMarina.hidden = false;
-  aviso.textContent = "Você está perto da Marina. Aperte ESPAÇO ou use o botão para conversar.";
+function mostrarConvite(p: Personagem): void {
+  const botao = cartaoConversa.querySelector("button")!;
+  const dica = cartaoConversa.querySelector<HTMLElement>(".dica")!;
+  const bloqueio = cartaoConversa.querySelector<HTMLElement>(".bloqueio")!;
+  void retratoDe(p.cenarioId).then((html) => {
+    cartaoConversa.querySelector(".retrato")!.innerHTML = html;
+  });
+  cartaoConversa.setAttribute("aria-label", p.nome);
+  if (liberada(p)) {
+    botao.hidden = false;
+    dica.hidden = false;
+    bloqueio.hidden = true;
+    botao.textContent = concluidos.has(p.cenarioId) ? "Conversar de novo" : `Conversar com ${comArtigo(p)}`;
+    aviso.textContent = `Você está perto ${p.artigo === "a" ? "da" : "do"} ${p.nome}. Aperte ESPAÇO ou use o botão para conversar.`;
+  } else {
+    const antes = quemVemAntes(p)!;
+    botao.hidden = true;
+    dica.hidden = true;
+    bloqueio.hidden = false;
+    bloqueio.textContent = `${p.nome} está ocupad${p.artigo}. Primeiro converse com ${comArtigo(antes)}.`;
+    aviso.textContent = bloqueio.textContent;
+  }
+  cartaoConversa.hidden = false;
 }
 function esconderConvite(): void {
-  cartaoMarina.hidden = true;
+  cartaoConversa.hidden = true;
 }
 
 // ---------- painel da conversa ----------
-function abrirPainel(): void {
+function abrirPainel(p: Personagem): void {
   if (painelAberto) return;
   painelAberto = true;
+  conversando = p;
   esconderConvite();
+  fecharBoasVindas();
   rota = [];
   teclas.clear();
   const url = new URL(`${BASE}conversa.html`, location.href);
-  url.searchParams.set("cenario", CENARIO);
+  url.searchParams.set("cenario", p.cenarioId);
   url.searchParams.set("jogador", jogadorId);
   const quadro = painel.querySelector("iframe")!;
   quadro.src = url.href;
@@ -380,25 +445,42 @@ async function fecharPainel(): Promise<void> {
   if (painel.open) painel.close();
   painel.querySelector("iframe")!.src = "about:blank";
   tela.focus();
-  // Pode ter concluído agora: o balão "…" some e o botão vira "Conversar de novo".
-  if (!concluiu && (await concluiuCenario())) {
-    concluiu = true;
-    mapa.ocultarCamada(CAMADA_BALAO);
+  // Pode ter concluído agora: libera a próxima pessoa e aponta onde ela está.
+  const antes = proxima();
+  await atualizarProgresso();
+  const depois = proxima();
+  if (antes !== depois) {
+    if (depois) {
+      mostrarBoasVindas(`Agora ${comArtigo(depois)} quer falar com você, <strong>${depois.local}</strong>.`);
+    } else {
+      cartaoBoasVindas.querySelector("h2")!.textContent = "Parabéns!";
+      cartaoBoasVindas.querySelector("p")!.textContent =
+        "Você concluiu as três conversas! Pode repetir qualquer uma quando quiser.";
+      cartaoBoasVindas.hidden = false;
+    }
   }
-  if (areasAtuais.has(ZONA_MARINA)) mostrarConvite();
+  conversando = undefined;
+  if (perto) mostrarConvite(perto);
 }
 $("#fechar-painel").addEventListener("click", () => void fecharPainel());
 // Esc fecha o modal pelo navegador; aqui o jogo arruma o resto.
 painel.addEventListener("close", () => void fecharPainel());
-// Esc apertado dentro da conversa (iframe do mesmo site).
+// Mensagens da conversa (iframe do mesmo site): Esc, ou "Próximo" depois do relatório.
 window.addEventListener("message", (e) => {
-  if (e.origin === location.origin && (e.data as { tipo?: string } | null)?.tipo === "fechar-conversa") void fecharPainel();
+  if (e.origin !== location.origin) return;
+  const tipo = (e.data as { tipo?: string } | null)?.tipo;
+  if (tipo === "fechar-conversa" || tipo === "proximo") void fecharPainel();
 });
 
-$("#ir-marina").addEventListener("click", () => {
-  const zona = mapa?.areas.find((a) => a.nome === ZONA_MARINA);
-  if (!zona) return;
-  irPara(Math.floor((zona.x + zona.w / 2) / mapa.tile), Math.floor((zona.y + zona.h - 1) / mapa.tile));
+botaoProximo.addEventListener("click", () => {
+  const p = proxima();
+  if (!p || !mapa) return;
+  if (p.tile) {
+    irPara(p.tile.x, p.tile.y + 1);
+  } else {
+    const zona = mapa.areas.find((a) => a.nome === zonaDe(p));
+    if (zona) irPara(Math.floor((zona.x + zona.w / 2) / mapa.tile), Math.floor((zona.y + zona.h - 1) / mapa.tile));
+  }
   tela.focus();
 });
 
@@ -409,9 +491,9 @@ window.addEventListener("keydown", (e) => {
     teclas.add(e.code);
     rota = [];
     e.preventDefault();
-  } else if (e.code === "Space" && areasAtuais.has(ZONA_MARINA) && !painelAberto) {
+  } else if (e.code === "Space" && perto && liberada(perto) && !painelAberto) {
     e.preventDefault();
-    abrirPainel();
+    abrirPainel(perto);
   }
 });
 window.addEventListener("keyup", (e) => teclas.delete(e.code));
@@ -491,12 +573,19 @@ function verificarAreas(): void {
   const agora = new Set(mapa.areasEm(eu.x, eu.y - 4));
   const entrou = (n: string) => agora.has(n) && !areasAtuais.has(n);
   const saiu = (n: string) => !agora.has(n) && areasAtuais.has(n);
-  if (entrou(SALA)) fecharBoasVindas();
-  if (entrou(ZONA_MARINA)) mostrarConvite();
-  if (saiu(ZONA_MARINA)) {
-    esconderConvite();
-    aviso.textContent = "";
-    void fecharPainel();
+  for (const p of PERSONAGENS) {
+    const zona = zonaDe(p);
+    if (entrou(zona)) {
+      perto = p;
+      if (p === proxima()) fecharBoasVindas();
+      mostrarConvite(p);
+    }
+    if (saiu(zona) && perto === p) {
+      perto = undefined;
+      esconderConvite();
+      aviso.textContent = "";
+      if (conversando === p) void fecharPainel();
+    }
   }
   areasAtuais = agora;
 }
@@ -530,14 +619,35 @@ function desenharBoneco(b: Boneco): void {
   ctx.drawImage(folhaDoBoneco(b.aparencia), quadro * t, linha * t, t, t, Math.round(b.x - 16), Math.round(b.y - 30), t, t);
 }
 
-function desenharNome(b: Boneco, destaque: boolean): void {
+/** Balão "…" animado acima de quem é a próxima conversa (mesmo estilo do balão da Marina no mapa). */
+function desenharBalao(b: Boneco, agora: number): void {
+  const x = Math.round(b.x - 11);
+  // acima da etiqueta com o nome
+  const y = Math.round(b.y - 70);
+  ctx.fillStyle = "#5b3a22";
+  ctx.fillRect(x, y, 22, 14);
+  ctx.fillStyle = "#fffaf0";
+  ctx.fillRect(x + 1, y + 1, 20, 12);
+  // rabinho
+  ctx.fillStyle = "#5b3a22";
+  ctx.fillRect(x + 9, y + 14, 4, 1);
+  ctx.fillRect(x + 10, y + 15, 2, 2);
+  ctx.fillStyle = "#fffaf0";
+  ctx.fillRect(x + 10, y + 13, 2, 2);
+  // 1, 2 ou 3 pontos, como o balão da Marina
+  const pontos = 1 + (Math.floor(agora / 350) % 3);
+  ctx.fillStyle = "#5b3a22";
+  for (let i = 0; i < pontos; i++) ctx.fillRect(x + 5 + i * 5, y + 6, 2, 2);
+}
+
+function desenharNome(b: Boneco, destaque: boolean, personagem = false): void {
   const dpr = camera.dpr;
   const sx = (b.x - camera.x) * camera.zoom;
   const sy = (b.y - 32 - camera.y) * camera.zoom;
   ctx.font = `700 ${Math.round(12 * dpr)}px Nunito, system-ui, sans-serif`;
   const w = ctx.measureText(b.nome).width + 10 * dpr;
   const h = 18 * dpr;
-  ctx.fillStyle = destaque ? "#3f6b31" : "rgba(59, 42, 30, 0.85)";
+  ctx.fillStyle = destaque ? "#3f6b31" : personagem ? "#8a5a34" : "rgba(59, 42, 30, 0.85)";
   ctx.beginPath();
   ctx.roundRect(sx - w / 2, sy - h - 2 * dpr, w, h, 4 * dpr);
   ctx.fill();
@@ -568,11 +678,14 @@ function quadro(agora: number): void {
   ctx.fillRect(0, 0, tela.width, tela.height);
   ctx.setTransform(camera.zoom, 0, 0, camera.zoom, -camera.x * camera.zoom, -camera.y * camera.zoom);
   mapa.desenharAbaixo(ctx, agora);
-  const todos = [...outros.values(), ...(eu.nome ? [eu] : [])].sort((a, b) => a.y - b.y);
+  const todos = [...npcs, ...outros.values(), ...(eu.nome ? [eu] : [])].sort((a, b) => a.y - b.y);
   todos.forEach(desenharBoneco);
   mapa.desenharAcima(ctx, agora);
+  const prox = proxima();
+  for (const n of npcs) if (n.p === prox) desenharBalao(n, agora);
 
   ctx.setTransform(1, 0, 0, 1, 0, 0);
+  for (const n of npcs) desenharNome(n, false, true);
   for (const o of outros.values()) desenharNome(o, false);
   if (eu.nome) desenharNome(eu, true);
   requestAnimationFrame(quadro);

@@ -14,6 +14,16 @@ export type Fala = { autor: "jogador" | "personagem"; texto: string };
 
 export class ApiError extends Error {}
 
+export type InfoCenario = {
+  id: string;
+  ordem: number;
+  titulo: string;
+  personagem: { nome: string; papel: string };
+  situacao: string;
+  meta: string;
+  maxTrocas: number;
+};
+
 async function chamar<T>(caminho: string, init?: RequestInit): Promise<T> {
   let res: Response;
   try {
@@ -30,6 +40,7 @@ async function chamar<T>(caminho: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
+  cenarios: () => chamar<{ cenarios: InfoCenario[] }>("/api/cenarios"),
   iniciar: (jogadorId: string, cenarioId: string) =>
     chamar<{ sessaoId: string; abertura: string; maxTrocas: number; voz?: boolean }>("/api/sessoes", {
       method: "POST",

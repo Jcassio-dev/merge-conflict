@@ -32,6 +32,7 @@ body.jogo { display: flex; min-height: 0; }
 .cartao-marina { display: flex; align-items: center; gap: 12px; text-align: left; }
 .cartao-marina .retrato { flex: none; width: 60px; height: 60px; padding: 2px; margin: 0; border-width: 3px; }
 .cartao-marina .texto { flex: 1; }
+.cartao-marina .bloqueio { margin: 0; font-weight: 700; color: var(--tinta); }
 .cartao-marina .dica { margin: 6px 0 0; font-size: 0.85rem; color: var(--tinta-suave); text-align: center; }
 
 .ajuda {
