@@ -3,7 +3,7 @@ import "./jogo.css";
 import { retratoMarina } from "../retrato";
 import { caminho, type Tile } from "./caminho";
 import {
-  DIRECOES, OPCIONAL, PARTES, ROTULO, TOTAL,
+  CORES_CABELO, DIRECOES, OPCIONAL, PARTES, ROTULO, TOTAL,
   aparenciaAleatoria, aparenciaValida, carregarPecas, folhaDoBoneco, quadroDoPasso, type Aparencia, type Parte,
 } from "./boneco";
 import { CAMADA_BALAO, Mapa } from "./mapa";
@@ -154,6 +154,7 @@ const formEntrada = entrada.querySelector("form")!;
 const previa = entrada.querySelector<HTMLCanvasElement>("#previa")!;
 const abas = entrada.querySelector<HTMLElement>(".abas")!;
 const grade = entrada.querySelector<HTMLElement>(".grade")!;
+const coresCabelo = entrada.querySelector<HTMLElement>(".cores-cabelo")!;
 let escolha: Aparencia = aparenciaValida(undefined);
 let parteAtual: Parte = "corpo";
 let previaTimer: ReturnType<typeof setInterval> | undefined;
@@ -205,6 +206,8 @@ function montarAbas(): void {
 
 /** Grade com as opções da parte escolhida, cada uma já vestida no seu boneco. */
 function montarGrade(): void {
+  coresCabelo.hidden = parteAtual !== "cabelo";
+  marcarCorCabelo();
   grade.innerHTML = "";
   grade.setAttribute("aria-label", ROTULO[parteAtual]);
   const opcoes = [...(OPCIONAL[parteAtual] ? [-1] : []), ...Array.from({ length: TOTAL[parteAtual] }, (_, i) => i)];
@@ -229,6 +232,37 @@ function montarGrade(): void {
   }
 }
 
+/** Cores do cabelo: as prontas e um seletor para qualquer outra. */
+function montarCoresCabelo(): void {
+  const lista = coresCabelo.querySelector(".amostras")!;
+  for (const { nome, cor } of CORES_CABELO) {
+    const rotulo = document.createElement("label");
+    rotulo.className = "amostra";
+    rotulo.title = nome;
+    rotulo.innerHTML = `<input type="radio" name="cor-cabelo" value="${cor}" aria-label="${nome}"><span style="background:${cor}" aria-hidden="true"></span>`;
+    lista.append(rotulo);
+  }
+  const trocar = (cor: string) => {
+    escolha = { ...escolha, corCabelo: cor };
+    marcarCorCabelo();
+    montarGrade();
+    animarPrevia();
+  };
+  lista.addEventListener("change", (e) => trocar((e.target as HTMLInputElement).value));
+  coresCabelo.querySelector<HTMLInputElement>("input[type=color]")!.addEventListener("input", (e) => trocar((e.target as HTMLInputElement).value));
+}
+
+function marcarCorCabelo(): void {
+  let pronta = false;
+  for (const i of coresCabelo.querySelectorAll<HTMLInputElement>("input[name=cor-cabelo]")) {
+    i.checked = i.value === escolha.corCabelo;
+    pronta ||= i.checked;
+  }
+  const livre = coresCabelo.querySelector<HTMLInputElement>("input[type=color]")!;
+  livre.value = escolha.corCabelo;
+  livre.closest("label")!.classList.toggle("marcada", !pronta);
+}
+
 function abrirEntrada(): void {
   const campo = formEntrada.querySelector<HTMLInputElement>("input[name=apelido]")!;
   campo.value = eu.nome || ler("cd-apelido");
@@ -241,6 +275,7 @@ function abrirEntrada(): void {
 }
 
 function montarEntrada(): void {
+  montarCoresCabelo();
   formEntrada.querySelector("#sortear")!.addEventListener("click", () => {
     escolha = aparenciaAleatoria();
     montarGrade();

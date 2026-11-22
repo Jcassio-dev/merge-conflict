@@ -1,4 +1,6 @@
 Peças de personagem (Woka): WorkAdventure, (c) TheCodingMachine
 https://github.com/workadventure/workadventure (play/public/resources/customisation)
 Licença: GNU AGPL v3 com Commons Clause. Uso sem venda.
-Juntadas em uma imagem por camada por map/ferramentas/montar-woka.py, sem alterar as peças.
+Juntadas em uma imagem por camada por map/ferramentas/montar-woka.py. Os cabelos foram
+passados para tons de cinza (para o jogador escolher a cor) e 4 cortes cacheados foram
+gerados a partir do formato de cortes existentes.

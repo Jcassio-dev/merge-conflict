@@ -88,6 +88,18 @@ body.jogo { display: flex; min-height: 0; }
   max-height: 232px; overflow-y: auto; padding: 4px;
   background: var(--papel-escuro); border: 3px solid var(--madeira-clara); border-radius: var(--raio);
 }
+.cores-cabelo { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin: 0 0 8px; }
+.cores-cabelo[hidden] { display: none; }
+.cores-cabelo legend { font-weight: 700; margin-bottom: 4px; font-size: 0.9rem; }
+.cores-cabelo .amostras { display: flex; flex-wrap: wrap; gap: 6px; }
+.amostra { position: relative; cursor: pointer; }
+.amostra input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.amostra span { display: block; width: 28px; height: 28px; border-radius: var(--raio); border: 3px solid var(--madeira-clara); }
+.amostra input:checked + span { border-color: var(--papel-claro); box-shadow: 0 0 0 3px var(--folha-escura); }
+.amostra input:focus-visible + span { outline: 3px solid var(--madeira-escura); outline-offset: 3px; }
+.cor-livre { display: inline-flex; align-items: center; gap: 6px; font-size: 0.9rem; font-weight: 700; cursor: pointer; }
+.cor-livre input { width: 40px; height: 32px; padding: 0; border: 3px solid var(--madeira-clara); border-radius: var(--raio); background: none; cursor: pointer; }
+.cor-livre.marcada input { border-color: var(--folha-escura); box-shadow: 0 0 0 2px var(--folha); }
 .peca { position: relative; display: grid; place-items: center; cursor: pointer; }
 .peca input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
 .peca canvas {
