@@ -50,7 +50,15 @@ const app = buildApp({
   limiteSessoesPorJogadorHora: Number(env.LIMITE_SESSOES_POR_JOGADOR_HORA ?? 10),
   trustProxy: env.TRUST_PROXY === "true",
   limiteSala: Number(env.LIMITE_SALA ?? 50),
+  arquivoProgresso: env.PROGRESSO_ARQUIVO || undefined,
 });
+
+// docker stop manda SIGTERM: fecha a API com calma para gravar o progresso pendente.
+for (const sinal of ["SIGTERM", "SIGINT"] as const) {
+  process.once(sinal, () => {
+    app.close().finally(() => process.exit(0));
+  });
+}
 
 app.listen({ port: Number(env.PORT ?? 8787), host: "0.0.0.0" }).catch((err) => {
   app.log.error(err);

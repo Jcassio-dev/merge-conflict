@@ -25,6 +25,8 @@ export type AppOptions = {
   limiteSessoesPorJogadorHora?: number;
   /** Atrás de proxy reverso (Traefik): confia no X-Forwarded-For para registrar o IP real. */
   trustProxy?: boolean;
+  /** Arquivo JSON onde o progresso fica guardado (vazio = só em memória). */
+  arquivoProgresso?: string;
   /** Máximo de pessoas ao mesmo tempo na sala multiplayer (padrão 50). */
   limiteSala?: number;
 };
@@ -59,7 +61,9 @@ function audioEmCache<K>(cache: Map<K, Promise<Buffer>>, chave: K, texto: string
 
 export function buildApp(opts: AppOptions) {
   const app = Fastify({ logger: opts.logger ?? false, trustProxy: opts.trustProxy ?? false });
-  const store = new Store();
+  const store = new Store(opts.arquivoProgresso);
+  // Ao desligar (deploy, reinício), grava o que estiver pendente.
+  app.addHook("onClose", async () => store.salvar());
   const limite = opts.limiteSessoesPorHora ?? 0;
   const inicios: number[] = []; // horários (ms) das sessões criadas na última hora
   const limiteJogador = opts.limiteSessoesPorJogadorHora ?? 0;
