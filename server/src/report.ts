@@ -48,6 +48,8 @@ function extrairJson(texto: string): unknown {
   return JSON.parse(ini >= 0 && fim > ini ? limpo.slice(ini, fim + 1) : limpo);
 }
 
+const TENTATIVAS = 3;
+
 export async function gerarRelatorio(
   llm: LlmProvider,
   falas: Fala[],
@@ -57,15 +59,27 @@ export async function gerarRelatorio(
     { role: "system" as const, content: `${lerPrompt("avaliadora.md")}\n\n${lerPrompt("rubrica.md")}` },
     { role: "user" as const, content: `Transcrição (JSON):\n${formatarTranscricao(falas)}` },
   ];
-  // Uma nova tentativa se o JSON vier inválido ou com citação inventada.
-  for (let tentativa = 1; tentativa <= 2; tentativa++) {
-    const bruto = await llm.complete(mensagens, { ...opcoes, json: true, maxTokens: 4096 });
+  // Até 3 tentativas: a chamada pode falhar (tempo esgotado, resposta cortada, provedor
+  // sobrecarregado) ou o relatório vir inválido ou com citação inventada. O motivo da
+  // última falha vai no erro (e no log), nunca o texto da conversa.
+  let motivo = "";
+  for (let tentativa = 1; tentativa <= TENTATIVAS; tentativa++) {
+    let bruto: string;
     try {
-      const r = RelatorioSchema.parse(extrairJson(bruto));
-      if (citacoesReais(r, falas)) return r;
-    } catch {
-      // tenta de novo
+      bruto = await llm.complete(mensagens, { ...opcoes, json: true, maxTokens: 4096 });
+    } catch (err) {
+      motivo = err instanceof LlmError ? err.message : "falha na chamada";
+      continue;
     }
+    let r: Relatorio;
+    try {
+      r = RelatorioSchema.parse(extrairJson(bruto));
+    } catch (err) {
+      motivo = err instanceof SyntaxError ? "JSON inválido" : "JSON fora do formato";
+      continue;
+    }
+    if (citacoesReais(r, falas)) return r;
+    motivo = "citação que não é fala do jogador";
   }
-  throw new LlmError("A avaliadora não devolveu um relatório válido");
+  throw new LlmError(`A avaliadora não devolveu um relatório válido em ${TENTATIVAS} tentativas (${motivo})`);
 }
