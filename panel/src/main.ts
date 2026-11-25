@@ -142,7 +142,7 @@ function blocoPesquisa(): string {
       <li>Para a IA responder e avaliar, o texto da conversa passa pelo Google (Gemini).</li>
       <li>Só a equipe do projeto vê os dados, sempre juntos. Ninguém da sua liderança ou da turma vê resultado individual.</li>
       <li>É opcional: você pode jogar sem participar, mudar de ideia aqui e pedir para apagar seus dados com o código que aparece no fim do cenário.</li>
-      <li>Dúvidas: fale com a equipe do projeto (Sarah, Ricson, Cássio, Gildo e Dagson).</li>
+      <li>Dúvidas ou pedido para apagar seus dados: <a href="mailto:contact@jcassio.dev">contact@jcassio.dev</a> (equipe do projeto: Sarah, Ricson, Cássio, Gildo e Dagson).</li>
     </ul>
     <fieldset class="escolha-pesquisa">
       <legend>Você quer participar da pesquisa?</legend>
@@ -287,7 +287,7 @@ function cartaoOpiniao(): string {
   if (estado.pesquisa !== "sim") return "";
   const o = estado.opiniao;
   const codigo = estado.codigoPesquisa
-    ? `<p class="discreto">Seu código na pesquisa: <strong>${esc(estado.codigoPesquisa)}</strong>. Para apagar seus dados, mande esse código à equipe.</p>`
+    ? `<p class="discreto">Seu código na pesquisa: <strong>${esc(estado.codigoPesquisa)}</strong>. Para apagar seus dados, mande esse código para contact@jcassio.dev.</p>`
     : "";
   if (o.enviada) return `<div class="card opiniao"><p role="status">Obrigado! Sua resposta ajuda a melhorar o jogo.</p>${codigo}</div>`;
   const r = o.respostas;
