@@ -6,6 +6,8 @@ import { CENARIOS, MARCA_FIM, cenarioPublico, lerPrompt } from "./scenarios.js";
 import { Store } from "./sessions.js";
 import { gerarRelatorioVotado } from "./report.js";
 import { Sala } from "./sala.js";
+import { Acesso, COOKIE, lerCookie, type OpcoesAcesso } from "./acesso.js";
+import { Pesquisa, type OpcoesPesquisa } from "./pesquisa.js";
 import { LlmError, type ChatMessage, type LlmProvider } from "./llm/types.js";
 import type { VozProvider } from "./voz/types.js";
 
@@ -31,6 +33,8 @@ export type AppOptions = {
   arquivoProgresso?: string;
   /** Máximo de pessoas ao mesmo tempo na sala multiplayer (padrão 50). */
   limiteSala?: number;
+  acesso?: OpcoesAcesso;
+  pesquisa?: OpcoesPesquisa;
 };
 
 const NovaSessao = z.object({
@@ -39,6 +43,13 @@ const NovaSessao = z.object({
 });
 const NovaFala = z.object({ texto: z.string().trim().min(1).max(1000) });
 const ComId = z.object({ id: z.string().uuid() });
+const NovoFeedback = z.object({
+  util: z.number().int().min(1).max(5).optional(),
+  realista: z.number().int().min(1).max(5).optional(),
+  justo: z.number().int().min(1).max(5).optional(),
+  comentario: z.string().trim().max(500).optional(),
+  ceder: z.boolean().default(false),
+});
 const ComFala = z.object({ id: z.string().uuid(), n: z.coerce.number().int().min(0).max(100) });
 
 const ERRO_LLM = "A IA não respondeu agora. Tente de novo em alguns segundos.";
@@ -67,6 +78,11 @@ function audioEmCache<K>(
   return audio;
 }
 
+const PAGINA = (titulo: string, texto: string) => `<!doctype html><html lang="pt-BR"><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1"><title>${titulo}</title>
+<body style="font-family:system-ui,sans-serif;background:#f8efdc;color:#2b2118;max-width:32rem;margin:4rem auto;padding:0 16px">
+<h1 style="font-size:1.4rem">${titulo}</h1><p>${texto}</p></body></html>`;
+
 export function buildApp(opts: AppOptions) {
   const app = Fastify({ logger: opts.logger ?? false, trustProxy: opts.trustProxy ?? false });
   const store = new Store(opts.arquivoProgresso);
@@ -83,6 +99,40 @@ export function buildApp(opts: AppOptions) {
   app.register(cors, { origin: origens.length ? origens : true });
 
   app.get("/health", async () => ({ ok: true }));
+
+  const acesso = new Acesso(opts.acesso ?? {});
+  const acessoAberto = !opts.acesso?.codigo && !opts.acesso?.usuario;
+  if (acessoAberto) app.log.warn("sem CONVITE_CODIGO nem SITE_USUARIO: /api/acesso deixa todo mundo entrar");
+
+  app.get("/api/entrar", async (req, reply) => {
+    const { c } = req.query as { c?: string };
+    if (!acesso.linkValido(typeof c === "string" ? c : undefined)) {
+      req.log.warn("link de convite inválido ou vencido");
+      return reply
+        .code(403)
+        .type("text/html; charset=utf-8")
+        .send(PAGINA("Este link não vale mais", "Ele está errado ou venceu. Peça o link novo para a equipe do projeto."));
+    }
+    const { valor, maxAge } = acesso.novoCookie();
+    return reply
+      .header("set-cookie", `${COOKIE}=${valor}; Max-Age=${maxAge}; Path=/; HttpOnly; Secure; SameSite=Lax`)
+      .redirect("/", 302);
+  });
+
+  // forward_auth do Caddy: 204 deixa passar; 401 com Basic faz o navegador pedir a senha antiga.
+  app.get("/api/acesso", async (req, reply) => {
+    if (acessoAberto) return reply.code(204).send();
+    if (acesso.cookieValido(lerCookie(req.headers.cookie, COOKIE)) || acesso.basicValido(req.headers.authorization)) {
+      return reply.code(204).send();
+    }
+    if (opts.acesso?.usuario) reply.header("www-authenticate", 'Basic realm="Conversas Dificeis em TI", charset="UTF-8"');
+    return reply
+      .code(401)
+      .type("text/html; charset=utf-8")
+      .send(PAGINA("Entre pelo link de convite", "Abra o link que a equipe mandou para a turma."));
+  });
+
+  const pesquisa = new Pesquisa(opts.pesquisa ?? {});
 
   // Cenários do piloto, em ordem (só o que o painel mostra; os prompts ficam aqui).
   app.get("/api/cenarios", async () => ({
@@ -230,6 +280,7 @@ export function buildApp(opts: AppOptions) {
         s.relatorio = relatorio;
         // Avaliadoras discordaram totalmente: anota para a equipe revisar a rubrica (sem a conversa).
         if (divergentes.length) req.log.warn({ cenario: s.cenarioId, divergentes }, "avaliação divergente");
+        await pesquisa.conversaConcluida(s, { votos: opts.votosAvaliadora ?? 1, divergentes });
       } catch (err) {
         req.log.warn({ err: err instanceof Error ? err.message : err }, "falha na LLM (avaliadora)");
         return reply.code(502).send({ erro: ERRO_LLM });
@@ -238,6 +289,19 @@ export function buildApp(opts: AppOptions) {
       store.registrarConclusao(s, Object.fromEntries(s.relatorio.criterios.map((c) => [c.nome, c.nivel])));
     }
     return { relatorio: s.relatorio, falas: s.falas };
+  });
+
+  app.post("/api/sessoes/:id/feedback", async (req, reply) => {
+    const params = ComId.safeParse(req.params);
+    const body = NovoFeedback.safeParse(req.body);
+    if (!params.success || !body.success) return reply.code(400).send({ erro: "Dados inválidos" });
+    const s = store.obter(params.data.id);
+    if (!s) return reply.code(404).send({ erro: "Esta conversa expirou. Obrigado mesmo assim!" });
+    if (!s.relatorio) return reply.code(409).send({ erro: "Termine a conversa antes de responder" });
+    if (s.feedbackEnviado) return reply.code(409).send({ erro: "Você já respondeu sobre esta conversa" });
+    s.feedbackEnviado = true;
+    await pesquisa.feedback(s, { ...body.data, comentario: body.data.comentario || undefined });
+    return reply.code(201).send({ ok: true });
   });
 
   // Progresso por cenário (sem pontuação nem ranking).

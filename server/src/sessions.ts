@@ -13,6 +13,8 @@ export type Sessao = {
   encerrada: boolean;
   relatorio?: Relatorio;
   criadaEm: number;
+  tentativa?: number;
+  feedbackEnviado?: boolean;
   /** Áudio já gerado das falas da personagem (índice da fala → WAV). Some com a sessão. */
   audios?: Map<number, Promise<Buffer>>;
 };
@@ -29,7 +31,8 @@ const DUAS_HORAS = 2 * 60 * 60 * 1000;
  * Sessões em memória; progresso em memória e, se houver `arquivo`, também em disco
  * (JSON), para sobreviver a um reinício da API.
  * Só o progresso vai para o disco (id anônimo, tentativas, concluído, níveis).
- * A transcrição nunca é gravada e some quando a sessão expira (privacidade).
+ * A transcrição não vai para o progresso e some quando a sessão expira (privacidade); só
+ * é guardada se o jogador ceder a conversa à pesquisa (ver pesquisa.ts).
  */
 export class Store {
   private sessoes = new Map<string, Sessao>();
@@ -62,6 +65,7 @@ export class Store {
     const p = this.progressoDe(jogadorId);
     const atual = p[cenarioId] ?? { tentativas: 0, concluido: false };
     p[cenarioId] = { ...atual, tentativas: atual.tentativas + 1 };
+    s.tentativa = atual.tentativas + 1;
     this.agendarGravacao();
     return s;
   }

@@ -1,7 +1,7 @@
 import "./style.css";
 import { retratoDe } from "./retrato";
 import { microfoneDisponivel, ouvir, parar as pararVoz, tocar, type Escuta } from "./voz";
-import { api, ApiError, type InfoCenario, type Fala, type Nivel, type NomeCriterio, type Relatorio } from "./api";
+import { api, ApiError, type InfoCenario, type Fala, type Nivel, type NomeCriterio, type Relatorio, type Feedback } from "./api";
 
 // ---------- parâmetros e armazenamento local ----------
 const params = new URLSearchParams(location.search);
@@ -46,7 +46,18 @@ const estado = {
   vozLigada: lerLocal("cd-voz") !== "desligada",
   ouvindo: false,
   avisoMic: "",
+  opiniao: novaOpiniao(),
 };
+
+function novaOpiniao() {
+  return { respostas: { ceder: false } as Feedback, enviando: false, enviada: false, erro: "" };
+}
+
+const PERGUNTAS: [keyof Omit<Feedback, "comentario" | "ceder">, string][] = [
+  ["util", "Esta conversa foi útil para você?"],
+  ["realista", "A conversa pareceu real?"],
+  ["justo", "O feedback foi justo com o que você disse?"],
+];
 let escuta: Escuta | undefined;
 
 const app = document.querySelector<HTMLElement>("#app")!;
@@ -233,6 +244,7 @@ function telaReflexao(): string {
       <textarea id="reflexao" rows="2" placeholder="Escreva uma linha (opcional)">${esc(lerLocal("cd-reflexao"))}</textarea>
       <p class="discreto">Fica só neste navegador; não vai para a IA.</p>
     </div>
+    ${cartaoOpiniao()}
     <div class="acoes">
       <button data-acao="repetir">Repetir cenário</button>
       ${proximoCenario()
@@ -241,6 +253,46 @@ function telaReflexao(): string {
     </div>
     <p class="discreto">Sem pontos nem ranking: só o progresso por habilidade. Para sair, deixe a sala no mapa.</p>
   </section>`;
+}
+
+function cartaoOpiniao(): string {
+  const o = estado.opiniao;
+  if (o.enviada) return `<div class="card opiniao"><p role="status">Obrigado! Sua resposta ajuda a melhorar o jogo.</p></div>`;
+  const r = o.respostas;
+  return `<form class="card opiniao" data-form="opiniao">
+    <h2>O que você achou?</h2>
+    <p class="discreto">Opcional e anônimo: vai sem seu nome nem apelido.</p>
+    ${PERGUNTAS.map(([chave, pergunta]) => `
+      <fieldset class="escala">
+        <legend>${pergunta}</legend>
+        <div>${[1, 2, 3, 4, 5].map((n) => `
+          <label><input type="radio" name="${chave}" value="${n}" ${r[chave] === n ? "checked" : ""}><span>${n}</span></label>`).join("")}
+        </div>
+        <p class="discreto extremos"><span>1 nada</span><span>5 muito</span></p>
+      </fieldset>`).join("")}
+    <label for="comentario">O que você mudaria? (opcional)</label>
+    <textarea id="comentario" name="comentario" rows="2" maxlength="500">${esc(r.comentario ?? "")}</textarea>
+    <label class="ceder"><input type="checkbox" name="ceder" ${r.ceder ? "checked" : ""}>
+      <span>Aceito ceder esta conversa para a pesquisa do projeto. Ela é guardada sem meu nome ou apelido,
+      só a equipe lê e é apagada em até 90 dias.</span></label>
+    ${o.erro ? `<p class="erro" role="alert">${esc(o.erro)}</p>` : ""}
+    <div class="acoes"><button type="submit" ${o.enviando ? "disabled" : ""}>${o.enviando ? "Enviando…" : "Enviar"}</button></div>
+  </form>`;
+}
+
+async function enviarOpiniao(): Promise<void> {
+  const o = estado.opiniao;
+  const { comentario, ...resto } = o.respostas;
+  const vazio = !resto.ceder && !resto.util && !resto.realista && !resto.justo && !comentario?.trim();
+  if (vazio) { o.erro = "Responda pelo menos uma pergunta."; render(); return; }
+  o.enviando = true; o.erro = ""; render();
+  try {
+    await api.feedback(estado.sessaoId, { ...resto, comentario: comentario?.trim() || undefined });
+    o.enviada = true;
+  } catch (e) {
+    o.erro = e instanceof ApiError ? e.message : "Não deu para enviar agora.";
+  }
+  o.enviando = false; render();
 }
 
 function renderFicha(pausa: boolean): void {
@@ -264,7 +316,7 @@ async function comecar(): Promise<void> {
     const s = await api.iniciar(jogadorId, cenario.id);
     Object.assign(estado, {
       sessaoId: s.sessaoId, maxTrocas: s.maxTrocas, troca: 0, voz: s.voz === true,
-      falas: [{ autor: "personagem", texto: s.abertura }], tela: "dialogo", relatorio: undefined, aba: "resumo",
+      falas: [{ autor: "personagem", texto: s.abertura }], tela: "dialogo", relatorio: undefined, aba: "resumo", opiniao: novaOpiniao(),
     });
   } catch (e) {
     estado.erro = e instanceof ApiError ? e.message : "Algo deu errado.";
@@ -372,6 +424,15 @@ function ligarEventos(): void {
     if (ev.key === "Enter" && !ev.shiftKey) { ev.preventDefault(); form?.requestSubmit(); }
   });
   campo?.addEventListener("input", () => { estado.textoPendente = campo.value; });
+  const opiniao = app.querySelector<HTMLFormElement>("[data-form=opiniao]");
+  opiniao?.addEventListener("input", (ev) => {
+    const alvo = ev.target as HTMLInputElement;
+    const r = estado.opiniao.respostas;
+    if (alvo.name === "ceder") r.ceder = alvo.checked;
+    else if (alvo.name === "comentario") r.comentario = alvo.value;
+    else if (alvo.type === "radio") r[alvo.name as "util"] = Number(alvo.value);
+  });
+  opiniao?.addEventListener("submit", (ev) => { ev.preventDefault(); void enviarOpiniao(); });
   app.querySelector<HTMLTextAreaElement>("#reflexao")?.addEventListener("input", (ev) =>
     salvarLocal("cd-reflexao", (ev.target as HTMLTextAreaElement).value),
   );

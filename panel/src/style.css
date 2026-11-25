@@ -185,3 +185,25 @@ button[data-acao="microfone"][aria-pressed="true"] { background: var(--marca); b
 .motivos li { background: var(--papel-claro); border: 3px solid var(--madeira-clara); border-radius: var(--raio); padding: 8px 12px; }
 .motivos .discreto { display: block; margin-top: 4px; font-style: italic; }
 .relatorio .base { margin-top: 12px; font-size: 0.85rem; }
+
+.opiniao { display: grid; gap: 10px; }
+.opiniao h2 { margin: 0; }
+.escala { border: 0; padding: 0; margin: 0; }
+.escala legend { font-weight: 700; margin-bottom: 6px; }
+.escala > div { display: flex; gap: 8px; }
+.escala label { position: relative; }
+.escala input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.escala label span {
+  display: grid; place-items: center; width: 44px; height: 44px;
+  border: 3px solid var(--madeira-clara); border-radius: var(--raio); background: var(--papel-claro);
+  font-weight: 700;
+}
+.escala input:checked + span { background: var(--folha-clara); border-color: var(--folha-escura); }
+.escala input:focus-visible + span { outline: 3px solid var(--tinta); outline-offset: 2px; }
+.escala .extremos { display: flex; justify-content: space-between; max-width: 252px; margin: 4px 0 0; }
+.opiniao textarea {
+  font: inherit; padding: 8px 10px; color: var(--tinta);
+  background: var(--papel-claro); border: 3px solid var(--madeira-clara); border-radius: var(--raio);
+}
+.ceder { display: flex; gap: 10px; align-items: flex-start; }
+.ceder input { width: 22px; height: 22px; margin-top: 2px; flex: none; accent-color: var(--folha-escura); }

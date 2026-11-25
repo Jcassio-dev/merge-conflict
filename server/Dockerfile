@@ -14,7 +14,8 @@ COPY package.json package-lock.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 COPY --from=build /app/dist ./dist
 COPY prompts ./prompts
-# Pasta do progresso em disco (montar um volume aqui; ver PROGRESSO_ARQUIVO).
+COPY scripts ./scripts
+# Progresso e dados da pesquisa (montar um volume aqui).
 RUN mkdir -p /app/dados && chown node:node /app/dados
 USER node
 EXPOSE 8787

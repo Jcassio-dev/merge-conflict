@@ -55,4 +55,8 @@ export const api = {
   urlVoz: (sessaoId: string, n: number) => `${API}/api/sessoes/${sessaoId}/falas/${n}/voz`,
   relatorio: (sessaoId: string) =>
     chamar<{ relatorio: Relatorio; falas: Fala[] }>(`/api/sessoes/${sessaoId}/relatorio`, { method: "POST", body: "{}" }),
+  feedback: (sessaoId: string, dados: Feedback) =>
+    chamar<{ ok: true }>(`/api/sessoes/${sessaoId}/feedback`, { method: "POST", body: JSON.stringify(dados) }),
 };
+
+export type Feedback = { util?: number; realista?: number; justo?: number; comentario?: string; ceder: boolean };

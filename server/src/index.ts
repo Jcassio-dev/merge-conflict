@@ -52,6 +52,18 @@ const app = buildApp({
   limiteSala: Number(env.LIMITE_SALA ?? 50),
   arquivoProgresso: env.PROGRESSO_ARQUIVO || undefined,
   votosAvaliadora: Number(env.VOTOS_AVALIADORA ?? 3),
+  acesso: {
+    codigo: env.CONVITE_CODIGO || undefined,
+    validoAte: env.CONVITE_VALIDO_ATE || undefined,
+    diasCookie: Number(env.CONVITE_DIAS_COOKIE ?? 7),
+    usuario: env.SITE_USUARIO || undefined,
+    senha: env.SITE_SENHA || undefined,
+  },
+  pesquisa: {
+    pasta: env.PESQUISA_PASTA || undefined,
+    sal: env.PESQUISA_SAL || undefined,
+    diasConversaCedida: Number(env.PESQUISA_DIAS_CONVERSA ?? 90),
+  },
 });
 
 // docker stop manda SIGTERM: fecha a API com calma para gravar o progresso pendente.
