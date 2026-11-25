@@ -5,8 +5,8 @@ export type NomeCriterio = "assertividade" | "escuta" | "negociacao" | "conflito
 
 export type Relatorio = {
   criterios: { nome: NomeCriterio; nivel: Nivel; evidencia: string; motivo?: string }[];
-  ponto_forte: { trecho: string; comentario: string };
-  para_treinar: { criterio: NomeCriterio; voce_disse: string; tente: string };
+  ponto_forte: { trecho: string; comentario: string } | null;
+  para_treinar: { criterio: NomeCriterio; voce_disse: string; principio?: string; tente: string };
   resultado: "acordo" | "sem_acordo" | "sobrecarga_aceita";
 };
 
@@ -22,6 +22,8 @@ export type InfoCenario = {
   situacao: string;
   meta: string;
   maxTrocas: number;
+  ficha?: { titulo: string; passos: { nome: string; texto: string }[]; exemplo: string };
+  reflexao?: string;
 };
 
 async function chamar<T>(caminho: string, init?: RequestInit): Promise<T> {
@@ -41,10 +43,10 @@ async function chamar<T>(caminho: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   cenarios: () => chamar<{ cenarios: InfoCenario[] }>("/api/cenarios"),
-  iniciar: (jogadorId: string, cenarioId: string) =>
+  iniciar: (jogadorId: string, cenarioId: string, pesquisa: boolean) =>
     chamar<{ sessaoId: string; abertura: string; maxTrocas: number; voz?: boolean }>("/api/sessoes", {
       method: "POST",
-      body: JSON.stringify({ jogadorId, cenarioId }),
+      body: JSON.stringify({ jogadorId, cenarioId, pesquisa }),
     }),
   falar: (sessaoId: string, texto: string) =>
     chamar<{ resposta: string; troca: number; maxTrocas: number; encerrada: boolean }>(
@@ -54,7 +56,7 @@ export const api = {
   /** Áudio (WAV) da fala n da personagem; o servidor só aceita falas dela. */
   urlVoz: (sessaoId: string, n: number) => `${API}/api/sessoes/${sessaoId}/falas/${n}/voz`,
   relatorio: (sessaoId: string) =>
-    chamar<{ relatorio: Relatorio; falas: Fala[] }>(`/api/sessoes/${sessaoId}/relatorio`, { method: "POST", body: "{}" }),
+    chamar<{ relatorio: Relatorio; falas: Fala[]; codigoPesquisa?: string }>(`/api/sessoes/${sessaoId}/relatorio`, { method: "POST", body: "{}" }),
   feedback: (sessaoId: string, dados: Feedback) =>
     chamar<{ ok: true }>(`/api/sessoes/${sessaoId}/feedback`, { method: "POST", body: JSON.stringify(dados) }),
 };

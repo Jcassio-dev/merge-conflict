@@ -16,6 +16,6 @@ negociacao
 - bom: "Que tal: pontos de estilo eu marco como sugestão, e o que for sério eu falo com você antes de comentar. Topa?"
 
 conflitos
-- a_melhorar: "Se não aguenta crítica, não abre PR."
-- adequado: "Tá, vamos esquecer isso."
+- a_melhorar: "Se não aguenta crítica, não abre PR." / "Tá, vamos esquecer isso."
+- adequado: "Desculpa se soou mal, não era a intenção. Depois a gente vê como fazer."
 - bom: "Combinado então: sugestão marcada como sugestão, e se for grave a gente conversa primeiro. Valeu por vir falar comigo."

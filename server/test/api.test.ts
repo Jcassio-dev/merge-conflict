@@ -42,6 +42,13 @@ describe("conversa do Cenário 1", () => {
     expect(r.json().resposta).toContain("prometi");
   });
 
+  it("[FIM] numa fala que termina com pergunta não encerra: o jogador ainda pode responder", async () => {
+    const llm: LlmProvider = { complete: async () => "Pode ser na próxima sprint então. Fecha assim? [FIM]" };
+    const { app, sessaoId } = await iniciar(llm);
+    const r = await falar(app, sessaoId, "Posso entregar na próxima sprint?");
+    expect(r.json()).toMatchObject({ encerrada: false, resposta: "Pode ser na próxima sprint então. Fecha assim?" });
+  });
+
   it("encerra ao atingir o limite de 8 falas e recusa a 9ª", async () => {
     const { app, sessaoId } = await iniciar();
     let ultima;

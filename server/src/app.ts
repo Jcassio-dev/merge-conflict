@@ -40,6 +40,7 @@ export type AppOptions = {
 const NovaSessao = z.object({
   jogadorId: z.string().min(1).max(100),
   cenarioId: z.string().default("cenario-1"),
+  pesquisa: z.boolean().default(true),
 });
 const NovaFala = z.object({ texto: z.string().trim().min(1).max(1000) });
 const ComId = z.object({ id: z.string().uuid() });
@@ -193,6 +194,7 @@ export function buildApp(opts: AppOptions) {
       }
     }
     const s = store.criar(body.data.jogadorId, cenario.id, cenario.abertura);
+    s.pesquisa = body.data.pesquisa;
     return reply
       .code(201)
       .send({ sessaoId: s.id, abertura: cenario.abertura, maxTrocas: cenario.maxTrocas, voz: Boolean(opts.voz) });
@@ -229,6 +231,8 @@ export function buildApp(opts: AppOptions) {
 
     let encerrada = resposta.includes(MARCA_FIM);
     resposta = resposta.replaceAll(MARCA_FIM, "").trim();
+    // Encerrar numa pergunta deixaria o jogador sem poder responder.
+    if (resposta.endsWith("?")) encerrada = false;
     s.falas.push({ autor: "jogador", texto: body.data.texto }, { autor: "personagem", texto: resposta });
     const troca = s.falas.filter((f) => f.autor === "jogador").length;
     if (troca >= cenario.maxTrocas) encerrada = true;
@@ -280,7 +284,7 @@ export function buildApp(opts: AppOptions) {
         s.relatorio = relatorio;
         // Avaliadoras discordaram totalmente: anota para a equipe revisar a rubrica (sem a conversa).
         if (divergentes.length) req.log.warn({ cenario: s.cenarioId, divergentes }, "avaliação divergente");
-        await pesquisa.conversaConcluida(s, { votos: opts.votosAvaliadora ?? 1, divergentes });
+        if (s.pesquisa !== false) await pesquisa.conversaConcluida(s, { votos: opts.votosAvaliadora ?? 1, divergentes });
       } catch (err) {
         req.log.warn({ err: err instanceof Error ? err.message : err }, "falha na LLM (avaliadora)");
         return reply.code(502).send({ erro: ERRO_LLM });
@@ -288,7 +292,11 @@ export function buildApp(opts: AppOptions) {
       s.encerrada = true;
       store.registrarConclusao(s, Object.fromEntries(s.relatorio.criterios.map((c) => [c.nome, c.nivel])));
     }
-    return { relatorio: s.relatorio, falas: s.falas };
+    return {
+      relatorio: s.relatorio,
+      falas: s.falas,
+      codigoPesquisa: pesquisa.ligada && s.pesquisa !== false ? pesquisa.codigoDoJogador(s.jogadorId) : undefined,
+    };
   });
 
   app.post("/api/sessoes/:id/feedback", async (req, reply) => {
@@ -299,6 +307,7 @@ export function buildApp(opts: AppOptions) {
     if (!s) return reply.code(404).send({ erro: "Esta conversa expirou. Obrigado mesmo assim!" });
     if (!s.relatorio) return reply.code(409).send({ erro: "Termine a conversa antes de responder" });
     if (s.feedbackEnviado) return reply.code(409).send({ erro: "Você já respondeu sobre esta conversa" });
+    if (s.pesquisa === false) return reply.code(409).send({ erro: "Você escolheu não participar da pesquisa" });
     s.feedbackEnviado = true;
     await pesquisa.feedback(s, { ...body.data, comentario: body.data.comentario || undefined });
     return reply.code(201).send({ ok: true });

@@ -60,6 +60,20 @@ describe("dados do piloto", () => {
     expect(r.statusCode).toBe(409);
   });
 
+  it("quem pede para ficar fora da pesquisa não entra em nenhum arquivo", async () => {
+    const pasta = mkdtempSync(join(tmpdir(), "pesquisa-"));
+    const app = buildApp({ llm: new MockProvider(), pesquisa: { pasta, sal: "s" } });
+    const s = await app.inject({ method: "POST", url: "/api/sessoes", payload: { jogadorId: "j", pesquisa: false } });
+    const id = s.json().sessaoId as string;
+    await app.inject({ method: "POST", url: `/api/sessoes/${id}/falas`, payload: { texto: FALA } });
+    const rel = await app.inject({ method: "POST", url: `/api/sessoes/${id}/relatorio` });
+    expect(rel.json().codigoPesquisa).toBeUndefined();
+    const fb = await app.inject({ method: "POST", url: `/api/sessoes/${id}/feedback`, payload: { util: 5, ceder: true } });
+    expect(fb.statusCode).toBe(409);
+    expect(existsSync(join(pasta, "conversas.jsonl"))).toBe(false);
+    expect(existsSync(join(pasta, "cedidas.jsonl"))).toBe(false);
+  });
+
   it("nota fora de 1 a 5 é recusada", async () => {
     const { feedback } = await conversaCompleta();
     expect((await feedback({ util: 9 })).statusCode).toBe(400);

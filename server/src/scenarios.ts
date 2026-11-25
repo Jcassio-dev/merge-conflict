@@ -17,9 +17,11 @@ export type Cenario = {
     /** Voz do Gemini TTS (vazio = TTS_VOZ do .env). */
     voz?: string;
   };
-  /** Texto do briefing (Tela 2): a situação e a meta, em segunda pessoa. */
+  /** Briefing: inclui os fatos que a rubrica espera que o jogador use. */
   situacao: string;
   meta: string;
+  ficha: { titulo: string; passos: { nome: string; texto: string }[]; exemplo: string };
+  reflexao: string;
   /** Primeira fala da personagem, fixa (roteirizada). */
   abertura: string;
   /** Limite de falas do jogador. */
@@ -36,8 +38,18 @@ export const CENARIOS: Record<string, Cenario> = {
     titulo: "A mudança de última hora",
     personagem: { nome: "Marina", papel: "Product Owner", voz: "Kore" },
     situacao:
-      "Quarta-feira. A sprint termina na sexta, com demo para o cliente. Marina, a PO, vai pedir algo novo.",
+      "Quarta-feira. A sprint termina na sexta, com demo para o cliente, e a equipe já está no limite: ainda falta terminar o relatório de exportação, que também entra na demo. Marina, a PO, vai pedir algo novo.",
     meta: "Dizer o que é possível sem romper com ela.",
+    ficha: {
+      titulo: "Dizer não sem romper",
+      passos: [
+        { nome: "Fato", texto: "O que está acontecendo, sem julgar a pessoa" },
+        { nome: "Impacto", texto: "O que muda para a equipe ou para a entrega" },
+        { nome: "Proposta", texto: "Uma alternativa concreta, e pergunte se serve" },
+      ],
+      exemplo: "“Se eu pegar mais isso, o que já estava combinado atrasa. O que é mais importante entregar primeiro?”",
+    },
+    reflexao: "Em que reunião real desta semana você pode usar fato, impacto e proposta?",
     abertura: "Oi! O cliente pediu e eu já prometi: o login com Google entra nessa sprint. A demo é sexta, tudo certo?",
     maxTrocas: 8,
     promptPersonagem: "marina.md",
@@ -49,8 +61,18 @@ export const CENARIOS: Record<string, Cenario> = {
     titulo: "O prazo que não fecha",
     personagem: { nome: "Sérgio", papel: "Gerente de engenharia", voz: "Charon" },
     situacao:
-      "Segunda-feira. A diretoria quer lançar o módulo de pagamentos num evento na próxima sexta. Pela sua estimativa, o módulo leva três semanas. Sérgio, seu gerente, vai pedir o prazo.",
+      "Segunda-feira. A diretoria quer lançar o módulo de pagamentos num evento na próxima sexta. Pela sua estimativa, o módulo (Pix, cartão e estorno) leva três semanas, e só a integração com o banco leva uma. Sérgio, seu gerente, vai pedir o prazo.",
     meta: "Dizer que o prazo não fecha, com dados, e propor uma saída.",
+    ficha: {
+      titulo: "Prazo apertado, com dados",
+      passos: [
+        { nome: "Dado", texto: "A estimativa e de onde ela vem" },
+        { nome: "Risco", texto: "O que acontece se o prazo for apertado assim" },
+        { nome: "Opções", texto: "O que cabe no prazo, e o que fica para depois" },
+      ],
+      exemplo: "“Do jeito que está, não cabe em uma semana sem cortar testes. O que a diretoria mais precisa mostrar no dia?”",
+    },
+    reflexao: "Quando alguém pedir um prazo apertado, que dado você vai levar para a conversa?",
     abertura:
       "Bom dia! A diretoria quer o módulo de pagamentos no ar até o evento da próxima sexta. Dá pra fechar em uma semana, né?",
     maxTrocas: 8,
@@ -63,8 +85,19 @@ export const CENARIOS: Record<string, Cenario> = {
     titulo: "O code review que virou briga",
     personagem: { nome: "Diego", papel: "Dev sênior, seu colega de time", voz: "Puck" },
     situacao:
-      "Ontem você revisou o pull request do Diego e deixou doze comentários, vários dizendo só \"isso está errado\". O time inteiro viu. Ele veio falar com você.",
+      "Ontem você revisou o pull request do Diego e deixou doze comentários, vários dizendo só \"isso está errado\". O time inteiro viu. Dois apontavam problemas sérios (uma query sem índice e um erro no tratamento de exceção); o resto era questão de estilo. Ele veio falar com você.",
     meta: "Ouvir, separar a pessoa do problema e combinar um jeito melhor de revisar.",
+    ficha: {
+      titulo: "Ouvir e reparar",
+      passos: [
+        { nome: "Ouvir", texto: "Pergunte o que incomodou e repita com suas palavras" },
+        { nome: "Reconhecer", texto: "Assuma a sua parte, sem se justificar" },
+        { nome: "Separar", texto: "O que era sério e o que era só estilo" },
+        { nome: "Combinar", texto: "Como revisar daqui para a frente" },
+      ],
+      exemplo: "“Faz sentido você ter se sentido exposto. O que mais pegou para você?”",
+    },
+    reflexao: "Na próxima revisão de código que você fizer, o que vai fazer diferente?",
     abertura: "Vi seus comentários no meu PR. Doze, e metade dizendo que está errado. Na frente do time todo. Precisava disso?",
     maxTrocas: 8,
     promptPersonagem: "diego.md",
@@ -81,6 +114,8 @@ export function cenarioPublico(c: Cenario) {
     personagem: { nome: c.personagem.nome, papel: c.personagem.papel },
     situacao: c.situacao,
     meta: c.meta,
+    ficha: c.ficha,
+    reflexao: c.reflexao,
     maxTrocas: c.maxTrocas,
   };
 }

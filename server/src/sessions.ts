@@ -15,6 +15,8 @@ export type Sessao = {
   criadaEm: number;
   tentativa?: number;
   feedbackEnviado?: boolean;
+  /** false quando o jogador pediu para ficar fora da pesquisa. */
+  pesquisa?: boolean;
   /** Áudio já gerado das falas da personagem (índice da fala → WAV). Some com a sessão. */
   audios?: Map<number, Promise<Buffer>>;
 };

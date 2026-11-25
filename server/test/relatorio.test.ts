@@ -17,7 +17,7 @@ const valido = JSON.stringify({
     motivo: "Disse o impacto e fez uma proposta, mas não perguntou o que a Marina precisa.",
   })),
   ponto_forte: { trecho: fala, comentario: "Boa proposta." },
-  para_treinar: { criterio: "escuta", voce_disse: fala, tente: "O que pesa mais para você?" },
+  para_treinar: { criterio: "escuta", voce_disse: fala, principio: "Pergunte antes de propor.", tente: "O que pesa mais para você?" },
   resultado: "acordo",
 });
 
@@ -53,6 +53,21 @@ describe("gerarRelatorio", () => {
     const r = await gerarRelatorio(llm, falas);
     expect(r.criterios[0]!.motivo).toContain("impacto");
     expect(llm.chamadas).toBe(2);
+  });
+
+  it("a evidência de cada nível também tem de ser fala do jogador", async () => {
+    const base = JSON.parse(valido);
+    base.criterios[3].evidencia = "Preciso do login com Google até sexta.";
+    const llm = roteiro([JSON.stringify(base), valido]);
+    await gerarRelatorio(llm, falas);
+    expect(llm.chamadas).toBe(2);
+  });
+
+  it("aceita relatório sem ponto forte quando nada mereceu elogio", async () => {
+    const llm = roteiro([JSON.stringify({ ...JSON.parse(valido), ponto_forte: null })]);
+    const r = await gerarRelatorio(llm, falas);
+    expect(r.ponto_forte).toBeNull();
+    expect(llm.chamadas).toBe(1);
   });
 
   it("desiste depois de 3 tentativas e diz o motivo da última, sem o texto da conversa", async () => {

@@ -79,6 +79,7 @@ function avaliar(transcricao: string): string {
     para_treinar: {
       criterio: "escuta",
       voce_disse: primeira,
+      principio: "Pergunte o que pesa para a outra pessoa antes de propor.",
       tente: "Entendi que o cliente pressionou você. O que ele precisa ver na sexta?",
     },
     resultado,

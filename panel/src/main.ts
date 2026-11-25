@@ -47,6 +47,9 @@ const estado = {
   ouvindo: false,
   avisoMic: "",
   opiniao: novaOpiniao(),
+  /** "sim" | "nao" | "" (ainda não escolheu). Fica no navegador. */
+  pesquisa: lerLocal("cd-pesquisa"),
+  codigoPesquisa: "",
 };
 
 function novaOpiniao() {
@@ -116,9 +119,10 @@ function telaBriefing(): string {
     <ul class="chips" aria-label="Sobre o cenário">
       <li>Cerca de 15 min</li><li>Responda por texto</li><li>Pode pausar</li>
     </ul>
-    <p class="discreto">A IA analisa a conversa só para gerar o seu relatório.<br>
+    <p class="discreto">A IA usa a conversa para responder e gerar o seu relatório.
     Sua liderança não vê o resultado individual.${microfoneDisponivel ? `<br>
-    Se usar o microfone, o navegador envia sua voz para virar texto (no Chrome, ao Google). Nada é gravado.` : ""}</p>
+    Se usar o microfone, o navegador envia sua voz para virar texto (no Chrome, ao Google). O áudio não é gravado.` : ""}</p>
+    ${blocoPesquisa()}
     ${estado.erro ? `<p class="erro" role="alert">${esc(estado.erro)}</p>` : ""}
     <div class="acoes">
       <button class="primario" data-acao="comecar" ${estado.aguardando ? "disabled" : ""}>
@@ -126,6 +130,26 @@ function telaBriefing(): string {
       <button data-acao="ficha">Ler a ficha antes</button>
     </div>
   </section>`;
+}
+
+function blocoPesquisa(): string {
+  const escolha = estado.pesquisa;
+  return `<details class="pesquisa" ${escolha ? "" : "open"}>
+    <summary>Sobre a pesquisa e seus dados${escolha ? ` · ${escolha === "sim" ? "você participa" : "você não participa"}` : ""}</summary>
+    <p>Este jogo é um projeto da disciplina de Design Instrucional para TI (UFRN/IMD). Queremos saber se ele ajuda a treinar conversas difíceis.</p>
+    <ul>
+      <li>Se você participar, guardamos os níveis do relatório, o resultado, o tempo e o número de tentativas, com um código no lugar do seu nome. O texto da conversa só é guardado se, no fim, você aceitar cedê-lo.</li>
+      <li>Para a IA responder e avaliar, o texto da conversa passa pelo Google (Gemini).</li>
+      <li>Só a equipe do projeto vê os dados, sempre juntos. Ninguém da sua liderança ou da turma vê resultado individual.</li>
+      <li>É opcional: você pode jogar sem participar, mudar de ideia aqui e pedir para apagar seus dados com o código que aparece no fim do cenário.</li>
+      <li>Dúvidas: fale com a equipe do projeto (Sarah, Ricson, Cássio, Gildo e Dagson).</li>
+    </ul>
+    <fieldset class="escolha-pesquisa">
+      <legend>Você quer participar da pesquisa?</legend>
+      <label><input type="radio" name="pesquisa" value="sim" ${escolha === "sim" ? "checked" : ""}> Sim, pode usar meus dados</label>
+      <label><input type="radio" name="pesquisa" value="nao" ${escolha === "nao" ? "checked" : ""}> Não, só quero jogar</label>
+    </fieldset>
+  </details>`;
 }
 
 function telaDialogo(): string {
@@ -186,11 +210,15 @@ function telaRelatorio(): string {
       })
       .join("")}</dl>
     <div class="cards">
-      <article class="card bom"><h2>Ponto forte</h2><p>${esc(r.ponto_forte.comentario)}</p>
-        <blockquote>“${esc(r.ponto_forte.trecho)}”</blockquote></article>
+      ${r.ponto_forte
+        ? `<article class="card bom"><h2>Ponto forte</h2><p>${esc(r.ponto_forte.comentario)}</p>
+        <blockquote>“${esc(r.ponto_forte.trecho)}”</blockquote></article>`
+        : `<article class="card"><h2>Ponto forte</h2><p>Ainda não apareceu nesta conversa. Comece pela dica ao lado.</p></article>`}
       <article class="card"><h2>Para treinar: ${NOMES[r.para_treinar.criterio].toLowerCase()}</h2>
         <p class="discreto">Você disse: “${esc(r.para_treinar.voce_disse)}”</p>
-        <p><strong>Tente:</strong> “${esc(r.para_treinar.tente)}”</p></article>
+        ${r.para_treinar.principio ? `<p>${esc(r.para_treinar.principio)}</p>` : ""}
+        <p><strong>Um jeito de dizer:</strong> “${esc(r.para_treinar.tente)}”</p>
+        <p class="discreto">É um exemplo, não a única forma. Use suas palavras.</p></article>
     </div>`;
   const citadas = new Set(r.criterios.map((c) => c.evidencia.trim()));
   const porQue = `<h2>Por que cada nível</h2>
@@ -240,8 +268,8 @@ function telaReflexao(): string {
       .join("")}</dl>
     <div class="card">
       <h2><label for="reflexao">Pense na prática</label></h2>
-      <p>Em que reunião real desta semana você pode usar fato, impacto e proposta?</p>
-      <textarea id="reflexao" rows="2" placeholder="Escreva uma linha (opcional)">${esc(lerLocal("cd-reflexao"))}</textarea>
+      <p>${esc(cenario.reflexao ?? "Em que reunião real desta semana você pode usar o que treinou?")}</p>
+      <textarea id="reflexao" rows="2" placeholder="Escreva uma linha (opcional)">${esc(lerLocal(`cd-reflexao-${cenario.id}`))}</textarea>
       <p class="discreto">Fica só neste navegador; não vai para a IA.</p>
     </div>
     ${cartaoOpiniao()}
@@ -256,12 +284,16 @@ function telaReflexao(): string {
 }
 
 function cartaoOpiniao(): string {
+  if (estado.pesquisa !== "sim") return "";
   const o = estado.opiniao;
-  if (o.enviada) return `<div class="card opiniao"><p role="status">Obrigado! Sua resposta ajuda a melhorar o jogo.</p></div>`;
+  const codigo = estado.codigoPesquisa
+    ? `<p class="discreto">Seu código na pesquisa: <strong>${esc(estado.codigoPesquisa)}</strong>. Para apagar seus dados, mande esse código à equipe.</p>`
+    : "";
+  if (o.enviada) return `<div class="card opiniao"><p role="status">Obrigado! Sua resposta ajuda a melhorar o jogo.</p>${codigo}</div>`;
   const r = o.respostas;
   return `<form class="card opiniao" data-form="opiniao">
     <h2>O que você achou?</h2>
-    <p class="discreto">Opcional e anônimo: vai sem seu nome nem apelido.</p>
+    <p class="discreto">Opcional. Vai sem seu nome nem apelido.</p>
     ${PERGUNTAS.map(([chave, pergunta]) => `
       <fieldset class="escala">
         <legend>${pergunta}</legend>
@@ -276,6 +308,7 @@ function cartaoOpiniao(): string {
       <span>Aceito ceder esta conversa para a pesquisa do projeto. Ela é guardada sem meu nome ou apelido,
       só a equipe lê e é apagada em até 90 dias.</span></label>
     ${o.erro ? `<p class="erro" role="alert">${esc(o.erro)}</p>` : ""}
+    ${codigo}
     <div class="acoes"><button type="submit" ${o.enviando ? "disabled" : ""}>${o.enviando ? "Enviando…" : "Enviar"}</button></div>
   </form>`;
 }
@@ -296,24 +329,29 @@ async function enviarOpiniao(): Promise<void> {
 }
 
 function renderFicha(pausa: boolean): void {
+  const f = cenario.ficha;
   ficha.innerHTML = `
     <p class="discreto">${pausa ? "Pausado · ficha rápida" : "Ficha rápida"}</p>
-    <h2 id="ficha-titulo">Assertividade em 3 passos</h2>
-    <ol class="passos">
-      <li><strong>Fato</strong><span>O que está acontecendo, sem julgamento</span></li>
-      <li><strong>Impacto</strong><span>O que muda para a equipe ou para a entrega</span></li>
-      <li><strong>Proposta</strong><span>Uma alternativa concreta para combinar</span></li>
-    </ol>
-    <p>Exemplo: “Com o login, a demo de sexta atrasa. Posso entregar na próxima sprint?”</p>
+    <h2 id="ficha-titulo">${esc(f?.titulo ?? "Ficha")}</h2>
+    <ol class="passos">${(f?.passos ?? [])
+      .map((p) => `<li><strong>${esc(p.nome)}</strong><span>${esc(p.texto)}</span></li>`)
+      .join("")}</ol>
+    ${f ? `<p>Por exemplo: ${esc(f.exemplo)}</p><p class="discreto">Use suas palavras: copiar o exemplo não ajuda a treinar.</p>` : ""}
     <form method="dialog"><button class="primario">${pausa ? "Voltar à conversa" : "Fechar"}</button></form>`;
   ficha.showModal();
 }
 
 // ---------- ações ----------
 async function comecar(): Promise<void> {
+  if (!estado.pesquisa) {
+    estado.erro = "Antes de começar, diga se quer participar da pesquisa.";
+    render();
+    document.querySelector<HTMLInputElement>("input[name=pesquisa]")?.focus();
+    return;
+  }
   estado.aguardando = true; estado.erro = ""; render();
   try {
-    const s = await api.iniciar(jogadorId, cenario.id);
+    const s = await api.iniciar(jogadorId, cenario.id, estado.pesquisa === "sim");
     Object.assign(estado, {
       sessaoId: s.sessaoId, maxTrocas: s.maxTrocas, troca: 0, voz: s.voz === true,
       falas: [{ autor: "personagem", texto: s.abertura }], tela: "dialogo", relatorio: undefined, aba: "resumo", opiniao: novaOpiniao(),
@@ -379,6 +417,7 @@ async function pedirRelatorio(): Promise<void> {
   try {
     const r = await api.relatorio(estado.sessaoId);
     estado.relatorio = r.relatorio; estado.falas = r.falas; estado.tela = "relatorio";
+    estado.codigoPesquisa = r.codigoPesquisa ?? "";
   } catch (e) {
     estado.erro = e instanceof ApiError ? e.message : "Algo deu errado.";
   }
@@ -424,6 +463,13 @@ function ligarEventos(): void {
     if (ev.key === "Enter" && !ev.shiftKey) { ev.preventDefault(); form?.requestSubmit(); }
   });
   campo?.addEventListener("input", () => { estado.textoPendente = campo.value; });
+  app.querySelectorAll<HTMLInputElement>("input[name=pesquisa]").forEach((r) =>
+    r.addEventListener("change", () => {
+      estado.pesquisa = r.value;
+      salvarLocal("cd-pesquisa", r.value);
+      if (estado.erro.includes("pesquisa")) { estado.erro = ""; render(); }
+    }),
+  );
   const opiniao = app.querySelector<HTMLFormElement>("[data-form=opiniao]");
   opiniao?.addEventListener("input", (ev) => {
     const alvo = ev.target as HTMLInputElement;
@@ -434,7 +480,7 @@ function ligarEventos(): void {
   });
   opiniao?.addEventListener("submit", (ev) => { ev.preventDefault(); void enviarOpiniao(); });
   app.querySelector<HTMLTextAreaElement>("#reflexao")?.addEventListener("input", (ev) =>
-    salvarLocal("cd-reflexao", (ev.target as HTMLTextAreaElement).value),
+    salvarLocal(`cd-reflexao-${cenario.id}`, (ev.target as HTMLTextAreaElement).value),
   );
 }
 

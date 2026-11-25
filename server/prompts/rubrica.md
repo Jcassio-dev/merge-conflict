@@ -1,10 +1,15 @@
 Rubrica (4 critérios, 3 níveis)
 
-Cada nível descreve um comportamento que dá para ver numa fala do jogador. Os
+Cada nível descreve um comportamento que dá para ver nas falas do jogador. Os
 exemplos do cenário (logo abaixo da rubrica) ilustram os níveis; não exija as mesmas
-palavras. Se o jogador mostrou comportamentos de níveis diferentes, vale o melhor
-comportamento que apareceu de forma clara, desde que não tenha sido desfeito depois
-(ex.: propôs e logo em seguida desistiu e aceitou tudo).
+palavras.
+
+Vale o comportamento que predominou na conversa, não uma frase isolada:
+- Uma única fala boa, cercada de falas que a contradizem ou desfeita depois (ex.:
+  propôs e em seguida aceitou tudo), não dá "bom".
+- Se o jogador mudou de postura e manteve a nova até o fim, vale a postura do fim.
+- Uma frase pronta, sem ligação com o que a personagem disse, conta menos do que
+  uma resposta ao que ela acabou de dizer.
 
 assertividade
 Base: roteiro DESC (Bower e Bower, 1976): descrever o fato, dizer o impacto, especificar o pedido.
@@ -28,13 +33,18 @@ focar nos interesses e criar opções de ganho mútuo.
 
 conflitos
 Base: modos de lidar com conflito de Thomas e Kilmann (1974): competir, ceder, evitar,
-fazer concessões ou colaborar.
-- a_melhorar: aumenta a tensão (ironia, acusação, recusa ríspida) ou cede tudo para
-  encerrar o assunto.
-- adequado: mantém a tensão estável, mas a conversa termina sem combinado claro.
-- bom: baixa a tensão e fecha um combinado que os dois aceitam.
+fazer concessões ou colaborar. Avalie a postura e o tom do jogador, não a decisão da
+personagem: quem buscou colaborar pode ter "bom" mesmo se a personagem não aceitou.
+- a_melhorar: aumenta a tensão (ironia, acusação, recusa ríspida), cede tudo para
+  encerrar o assunto ou foge dele ("deixa pra lá", "vou ver").
+- adequado: mantém o tom respeitoso, mas não busca fechar nada: deixa a decisão vaga
+  ou para depois sem dizer o quê.
+- bom: baixa a tensão (reconhece o que o outro sente ou precisa, mantém a calma) e
+  busca um combinado claro: resume o que fica acertado ou propõe o próximo passo.
 
-resultado
-- acordo: a personagem aceitou um combinado.
-- sobrecarga_aceita: o jogador cedeu tudo sem negociar (no modelo de Thomas e Kilmann, "ceder").
-- sem_acordo: a conversa terminou sem combinado.
+resultado (o que aconteceu, não um nível)
+- acordo: a personagem aceitou um combinado concreto.
+- sobrecarga_aceita: o jogador aceitou fazer tudo o que foi pedido, sem negociar
+  (no modelo de Thomas e Kilmann, "ceder"). Só use se ele de fato se comprometeu.
+- sem_acordo: a conversa terminou sem combinado, inclusive quando o jogador adiou,
+  evitou ou deixou vago ("vou ver", "depois a gente vê").

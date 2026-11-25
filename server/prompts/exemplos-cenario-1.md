@@ -3,7 +3,7 @@ Exemplos deste cenário (Marina pede o login com Google na sprint)
 assertividade
 - a_melhorar: "Tá bom, eu dou um jeito." / "Você sempre faz isso com a gente."
 - adequado: "Acho que não vai dar tempo."
-- bom: "Com o login, a demo de sexta atrasa. Posso entregar na próxima sprint?"
+- bom: "Se o login entrar agora, a equipe não fecha o relatório de exportação até sexta e a demo fica pela metade. Dá para o login ser o primeiro item da próxima sprint?"
 
 escuta
 - a_melhorar: "Não dá e pronto."
@@ -16,6 +16,6 @@ negociacao
 - bom: "Tiro o relatório de exportação e coloco o login. Fecha assim?"
 
 conflitos
-- a_melhorar: "Isso é falta de planejamento seu."
-- adequado: "Vou ver o que consigo fazer."
+- a_melhorar: "Isso é falta de planejamento seu." / "Vou ver o que consigo fazer."
+- adequado: "Entendo a pressão do cliente. Vamos pensar com calma e depois a gente decide."
 - bom: "Fechado: o login entra na próxima sprint e eu aviso o cliente hoje."

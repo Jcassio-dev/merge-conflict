@@ -22,7 +22,16 @@ Regras:
 - O resultado depende do que a personagem realmente respondeu (falas com
   "autor": "personagem").
 - Seja justa e acolhedora. Não dê nota numérica.
-- "tente" é uma sugestão de fala curta, natural, em português do Brasil.
+- "ponto_forte": só quando uma fala mostrou comportamento de nível adequado ou bom.
+  Nunca elogie ceder tudo, fugir do assunto ou atacar. Se nada merecer, use null.
+- "para_treinar": escolha o critério com o nível mais baixo. Se todos forem "bom",
+  escolha o de evidência mais fraca e proponha um próximo desafio.
+  - "principio": 1 frase com o comportamento a treinar e por que ele ajuda
+    (ex.: "Pergunte o que pesa para a outra pessoa antes de propor: assim a proposta
+    resolve o problema dela").
+  - "tente": uma fala curta e natural, em português do Brasil, construída a partir
+    do que o jogador disse e do que a personagem respondeu nesta conversa. Não copie
+    os exemplos da rubrica.
 - Responda SOMENTE com JSON válido, sem texto antes ou depois, neste formato:
 
 {
@@ -32,7 +41,7 @@ Regras:
     {"nome": "negociacao", "evidencia": "...", "motivo": "...", "nivel": "..."},
     {"nome": "conflitos", "evidencia": "...", "motivo": "...", "nivel": "..."}
   ],
-  "ponto_forte": {"trecho": "fala literal do jogador", "comentario": "1 frase"},
-  "para_treinar": {"criterio": "assertividade|escuta|negociacao|conflitos", "voce_disse": "fala literal do jogador", "tente": "sugestão de fala"},
+  "ponto_forte": {"trecho": "fala literal do jogador", "comentario": "1 frase"} ou null,
+  "para_treinar": {"criterio": "assertividade|escuta|negociacao|conflitos", "voce_disse": "fala literal do jogador", "principio": "1 frase", "tente": "sugestão de fala"},
   "resultado": "acordo|sem_acordo|sobrecarga_aceita"
 }

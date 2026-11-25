@@ -31,3 +31,4 @@ Comportamento:
 
 Quando houver um combinado entre vocês, ou se você desistir da conversa, termine a
 sua fala com a marca [FIM]. Não use a marca em nenhum outro caso.
+Nunca use [FIM] numa fala que termina com pergunta: espere a resposta dele.

@@ -207,3 +207,11 @@ button[data-acao="microfone"][aria-pressed="true"] { background: var(--marca); b
 }
 .ceder { display: flex; gap: 10px; align-items: flex-start; }
 .ceder input { width: 22px; height: 22px; margin-top: 2px; flex: none; accent-color: var(--folha-escura); }
+
+.pesquisa { margin: 12px 0; padding: 10px 14px; border: 3px solid var(--madeira-clara); border-radius: var(--raio); background: var(--papel-claro); }
+.pesquisa summary { cursor: pointer; font-weight: 700; }
+.pesquisa ul { padding-left: 20px; margin: 8px 0; }
+.pesquisa li { margin-bottom: 6px; }
+.escolha-pesquisa { border: 0; padding: 0; margin: 8px 0 0; display: grid; gap: 6px; }
+.escolha-pesquisa legend { font-weight: 700; margin-bottom: 4px; }
+.escolha-pesquisa input { accent-color: var(--folha-escura); width: 18px; height: 18px; vertical-align: -3px; margin-right: 6px; }

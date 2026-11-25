@@ -16,6 +16,6 @@ negociacao
 - bom: "No evento, sai o pagamento por Pix; cartão e estorno entram em duas semanas. Serve para a diretoria?"
 
 conflitos
-- a_melhorar: "Se der errado, a culpa não é minha."
-- adequado: "Vou tentar e te aviso."
+- a_melhorar: "Se der errado, a culpa não é minha." / "Vou tentar e te aviso."
+- adequado: "Entendo que a diretoria está pressionando. Deixa eu olhar melhor e a gente conversa."
 - bom: "Fechado: Pix no evento e o resto no dia 20. Eu mando o plano por escrito hoje."

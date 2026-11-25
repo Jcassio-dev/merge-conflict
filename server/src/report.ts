@@ -18,8 +18,14 @@ export const RelatorioSchema = z.object({
       }),
     )
     .length(4),
-  ponto_forte: z.object({ trecho: z.string(), comentario: z.string() }),
-  para_treinar: z.object({ criterio: Criterio, voce_disse: z.string(), tente: z.string() }),
+  // null quando nenhuma fala mostrou um comportamento que valha elogiar.
+  ponto_forte: z.object({ trecho: z.string(), comentario: z.string() }).nullable(),
+  para_treinar: z.object({
+    criterio: Criterio,
+    voce_disse: z.string(),
+    principio: z.string().trim().min(1).max(300),
+    tente: z.string(),
+  }),
   resultado: z.enum(["acordo", "sem_acordo", "sobrecarga_aceita"]),
 });
 
@@ -39,14 +45,18 @@ export function formatarTranscricao(falas: Fala[]): string {
 
 const normalizar = (t: string) => t.toLowerCase().replace(/[“”"'.,!?…]/g, "").replace(/\s+/g, " ").trim();
 
-/** Garante que as citações vêm de falas reais do jogador (evita avaliação inventada). */
+/** Toda citação (inclusive a evidência de cada nível) tem de ser fala real do jogador. */
 export function citacoesReais(r: Relatorio, falas: Fala[]): boolean {
   const doJogador = falas.filter((f) => f.autor === "jogador").map((f) => normalizar(f.texto));
   const existe = (c: string) => {
     const n = normalizar(c);
     return n.length > 0 && doJogador.some((f) => f.includes(n));
   };
-  return existe(r.ponto_forte.trecho) && existe(r.para_treinar.voce_disse);
+  return (
+    r.criterios.every((c) => existe(c.evidencia)) &&
+    (r.ponto_forte === null || existe(r.ponto_forte.trecho)) &&
+    existe(r.para_treinar.voce_disse)
+  );
 }
 
 function extrairJson(texto: string): unknown {
